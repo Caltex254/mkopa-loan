@@ -1,0 +1,1132 @@
+     1→'use client';
+     2→
+     3→import React, { useState, useEffect, useCallback } from 'react';
+     4→import { useAppStore } from '@/components/store';
+     5→import { Button } from '@/components/ui/button';
+     6→import {
+     7→  Card,
+     8→  CardContent,
+     9→  CardHeader,
+    10→  CardTitle,
+    11→  CardDescription,
+    12→} from '@/components/ui/card';
+    13→import { Badge } from '@/components/ui/badge';
+    14→import { Separator } from '@/components/ui/separator';
+    15→import { ScrollArea } from '@/components/ui/scroll-area';
+    16→import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+    17→import {
+    18→  Table,
+    19→  TableBody,
+    20→  TableCell,
+    21→  TableHead,
+    22→  TableHeader,
+    23→  TableRow,
+    24→} from '@/components/ui/table';
+    25→import Image from 'next/image';
+    26→import {
+    27→  Home,
+    28→  PlusCircle,
+    29→  Shield,
+    30→  Clock,
+    31→  Bell,
+    32→  Settings,
+    33→  LogOut,
+    34→  Menu,
+    35→  X,
+    36→  CheckCircle2,
+    37→  AlertCircle,
+    38→  Loader2,
+    39→  ChevronRight,
+    40→  User,
+    41→  Mail,
+    42→  Phone,
+    43→  Lock,
+    44→  DollarSign,
+    45→  FileText,
+    46→  Eye,
+    47→} from 'lucide-react';
+    48→
+    49→// ─── Helper Functions ───────────────────────────────────────────────
+    50→
+    51→function formatCurrency(amount: number): string {
+    52→  return new Intl.NumberFormat('en-KE', {
+    53→    style: 'currency',
+    54→    currency: 'KES',
+    55→    minimumFractionDigits: 0,
+    56→    maximumFractionDigits: 0,
+    57→  }).format(amount);
+    58→}
+    59→
+    60→function getStatusColor(status: string): string {
+    61→  switch (status) {
+    62→    case 'approved':
+    63→      return 'bg-green-100 text-green-800';
+    64→    case 'submitted_for_review':
+    65→      return 'bg-blue-100 text-blue-800';
+    66→    case 'pending_activation':
+    67→      return 'bg-yellow-100 text-yellow-800';
+    68→    case 'rejected':
+    69→      return 'bg-red-100 text-red-800';
+    70→    case 'pending':
+    71→      return 'bg-yellow-100 text-yellow-800';
+    72→    case 'verified':
+    73→      return 'bg-green-100 text-green-800';
+    74→    default:
+    75→      return 'bg-gray-100 text-gray-800';
+    76→  }
+    77→}
+    78→
+    79→function formatDate(dateStr: string): string {
+    80→  return new Date(dateStr).toLocaleDateString('en-KE', {
+    81→    year: 'numeric',
+    82→    month: 'short',
+    83→    day: 'numeric',
+    84→  });
+    85→}
+    86→
+    87→// ─── Types ──────────────────────────────────────────────────────────
+    88→
+    89→interface LoanApplication {
+    90→  id: string;
+    91→  loanAmount: number;
+    92→  processingFee: number;
+    93→  amountReceived: number;
+    94→  totalRepayment: number;
+    95→  repaymentDate: string;
+    96→  status: string;
+    97→  activationPaid: boolean;
+    98→  activationRef?: string;
+    99→  paymentRef?: string;
+   100→  createdAt: string;
+   101→}
+   102→
+   103→interface NotificationItem {
+   104→  id: string;
+   105→  title: string;
+   106→  message: string;
+   107→  read: boolean;
+   108→  createdAt: string;
+   109→}
+   110→
+   111→interface KycData {
+   112→  id: string;
+   113→  status: string;
+   114→  legalName: string;
+   115→  nationalId: string;
+   116→  verifiedAt?: string;
+   117→  rejectionReason?: string;
+   118→}
+   119→
+   120→type DashboardView =
+   121→  | 'overview'
+   122→  | 'apply'
+   123→  | 'kyc'
+   124→  | 'history'
+   125→  | 'notifications'
+   126→  | 'settings';
+   127→
+   128→interface NavItem {
+   129→  id: DashboardView;
+   130→  label: string;
+   131→  icon: React.ReactNode;
+   132→}
+   133→
+   134→// ─── Navigation Items ───────────────────────────────────────────────
+   135→
+   136→const navItems: NavItem[] = [
+   137→  { id: 'overview', label: 'Overview', icon: <Home className="h-5 w-5" /> },
+   138→  { id: 'apply', label: 'Apply for Loan', icon: <PlusCircle className="h-5 w-5" /> },
+   139→  { id: 'kyc', label: 'KYC Verification', icon: <Shield className="h-5 w-5" /> },
+   140→  { id: 'history', label: 'Loan History', icon: <Clock className="h-5 w-5" /> },
+   141→  { id: 'notifications', label: 'Notifications', icon: <Bell className="h-5 w-5" /> },
+   142→  { id: 'settings', label: 'Account Settings', icon: <Settings className="h-5 w-5" /> },
+   143→];
+   144→
+   145→// ─── Component ──────────────────────────────────────────────────────
+   146→
+   147→export default function UserDashboard() {
+   148→  const { user, logout, setView, setNotifications, notifications } = useAppStore();
+   149→
+   150→  const [activeView, setActiveView] = useState<DashboardView>('overview');
+   151→  const [sidebarOpen, setSidebarOpen] = useState(false);
+   152→
+   153→  const [loans, setLoans] = useState<LoanApplication[]>([]);
+   154→  const [kycData, setKycData] = useState<KycData | null>(null);
+   155→  const [kycStatus, setKycStatus] = useState<string>('not_submitted');
+   156→  const [loading, setLoading] = useState(true);
+   157→  const [notifs, setNotifs] = useState<NotificationItem[]>([]);
+   158→
+   159→  // ─── Data Fetching ──────────────────────────────────────────────
+   160→
+   161→  const fetchData = useCallback(async () => {
+   162→    setLoading(true);
+   163→    try {
+   164→      // Fetch user profile with KYC status
+   165→      const meRes = await fetch('/api/auth/me');
+   166→      if (meRes.ok) {
+   167→        const meData = await meRes.json();
+   168→        if (meData.user?.kyc) {
+   169→          setKycStatus(meData.user.kyc.status);
+   170→          setKycData({
+   171→            id: '',
+   172→            status: meData.user.kyc.status,
+   173→            legalName: meData.user.kyc.legalName,
+   174→            nationalId: meData.user.kyc.nationalId,
+   175→            verifiedAt: meData.user.kyc.verifiedAt,
+   176→          });
+   177→        } else {
+   178→          setKycStatus('not_submitted');
+   179→        }
+   180→      }
+   181→
+   182→      // Fetch loan applications
+   183→      const loansRes = await fetch('/api/loans/my-applications');
+   184→      if (loansRes.ok) {
+   185→        const loansData = await loansRes.json();
+   186→        setLoans(loansData.applications || []);
+   187→      }
+   188→
+   189→      // Fetch notifications
+   190→      const notifRes = await fetch('/api/notifications');
+   191→      if (notifRes.ok) {
+   192→        const notifData = await notifRes.json();
+   193→        setNotifs(notifData.notifications || []);
+   194→        setNotifications(notifData.notifications || []);
+   195→      }
+   196→    } catch {
+   197→      // Silently handle fetch errors
+   198→    } finally {
+   199→      setLoading(false);
+   200→    }
+   201→  }, [setNotifications]);
+   202→
+   203→  useEffect(() => {
+   204→    fetchData();
+   205→  }, [fetchData]);
+   206→
+   207→  // ─── Mark Notification Read ─────────────────────────────────────
+   208→
+   209→  const markAsRead = async (notificationId: string) => {
+   210→    try {
+   211→      const res = await fetch('/api/notifications', {
+   212→        method: 'PUT',
+   213→        headers: { 'Content-Type': 'application/json' },
+   214→        body: JSON.stringify({ notificationId }),
+   215→      });
+   216→      if (res.ok) {
+   217→        setNotifs((prev) =>
+   218→          prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
+   219→        );
+   220→      }
+   221→    } catch {
+   222→      // Silently handle
+   223→    }
+   224→  };
+   225→
+   226→  // ─── Derived Data ───────────────────────────────────────────────
+   227→
+   228→  const unreadCount = notifs.filter((n) => !n.read).length;
+   229→  const activeLoans = loans.filter(
+   230→    (l) => l.status === 'approved' || l.status === 'submitted_for_review'
+   231→  );
+   232→  const latestApplication = loans[0] || null;
+   233→  const isKycVerified = kycStatus === 'verified';
+   234→
+   235→  // ─── Handle Navigation ──────────────────────────────────────────
+   236→
+   237→  const handleNavClick = (view: DashboardView) => {
+   238→    setActiveView(view);
+   239→    setSidebarOpen(false);
+   240→  };
+   241→
+   242→  const handleLogout = () => {
+   243→    logout();
+   244→    setView('landing');
+   245→  };
+   246→
+   247→  // ─── Sidebar Content ────────────────────────────────────────────
+   248→
+   249→  const sidebarContent = (
+   250→    <div className="flex h-full flex-col">
+   251→      {/* Brand */}
+   252→      <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-5">
+   253→        <Image src="/logo.png" alt="MKOPA LOAN" width={36} height={36} className="rounded-lg" />
+   254→        <div>
+   255→          <h2 className="text-base font-bold text-[#333333]">MKOPA LOAN</h2>
+   256→          <p className="text-xs text-gray-500">Digital Lending</p>
+   257→        </div>
+   258→      </div>
+   259→
+   260→      {/* Nav Items */}
+   261→      <nav className="flex-1 px-3 py-4">
+   262→        <ul className="space-y-1">
+   263→          {navItems.map((item) => (
+   264→            <li key={item.id}>
+   265→              <button
+   266→                onClick={() => handleNavClick(item.id)}
+   267→                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+   268→                  activeView === item.id
+   269→                    ? 'bg-[#00A651]/10 text-[#00A651]'
+   270→                    : 'text-gray-600 hover:bg-gray-100 hover:text-[#333333]'
+   271→                }`}
+   272→              >
+   273→                {item.icon}
+   274→                <span>{item.label}</span>
+   275→                {item.id === 'notifications' && unreadCount > 0 && (
+   276→                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+   277→                    {unreadCount}
+   278→                  </span>
+   279→                )}
+   280→              </button>
+   281→            </li>
+   282→          ))}
+   283→        </ul>
+   284→      </nav>
+   285→
+   286→      <Separator />
+   287→
+   288→      {/* User Info & Logout */}
+   289→      <div className="px-3 py-4">
+   290→        <div className="flex items-center gap-3 rounded-lg px-3 py-2">
+   291→          <Avatar className="h-9 w-9">
+   292→            <AvatarFallback className="bg-[#00A651] text-sm font-semibold text-white">
+   293→              {user?.fullName?.charAt(0)?.toUpperCase() || 'U'}
+   294→            </AvatarFallback>
+   295→          </Avatar>
+   296→          <div className="min-w-0 flex-1">
+   297→            <p className="truncate text-sm font-medium text-[#333333]">
+   298→              {user?.fullName || 'User'}
+   299→            </p>
+   300→            <p className="truncate text-xs text-gray-500">{user?.email || ''}</p>
+   301→          </div>
+   302→        </div>
+   303→        <button
+   304→          onClick={handleLogout}
+   305→          className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+   306→        >
+   307→          <LogOut className="h-5 w-5" />
+   308→          <span>Logout</span>
+   309→        </button>
+   310→      </div>
+   311→    </div>
+   312→  );
+   313→
+   314→  // ─── Overview Section ───────────────────────────────────────────
+   315→
+   316→  const renderOverview = () => (
+   317→    <div className="space-y-6">
+   318→      {/* Welcome Message */}
+   319→      <div>
+   320→        <h2 className="text-2xl font-bold text-[#333333]">
+   321→          Welcome back, {user?.fullName?.split(' ')[0] || 'User'}!
+   322→        </h2>
+   323→        <p className="mt-1 text-sm text-gray-500">
+   324→          Here&apos;s an overview of your account and loan activity.
+   325→        </p>
+   326→      </div>
+   327→
+   328→      {/* Stats Cards */}
+   329→      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+   330→        {/* Account Status */}
+   331→        <Card className="border-l-4 border-l-[#00A651]">
+   332→          <CardContent className="p-4">
+   333→            <div className="flex items-center justify-between">
+   334→              <div>
+   335→                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+   336→                  Account Status
+   337→                </p>
+   338→                <p className="mt-1 text-lg font-semibold text-[#333333]">
+   339→                  Active
+   340→                </p>
+   341→              </div>
+   342→              <Badge className="bg-green-100 text-green-800">Active</Badge>
+   343→            </div>
+   344→          </CardContent>
+   345→        </Card>
+   346→
+   347→        {/* Loan Application Status */}
+   348→        <Card className="border-l-4 border-l-blue-500">
+   349→          <CardContent className="p-4">
+   350→            <div className="flex items-center justify-between">
+   351→              <div>
+   352→                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+   353→                  Loan Status
+   354→                </p>
+   355→                <p className="mt-1 text-lg font-semibold text-[#333333]">
+   356→                  {latestApplication
+   357→                    ? latestApplication.status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+   358→                    : 'No Application'}
+   359→                </p>
+   360→              </div>
+   361→              {latestApplication && (
+   362→                <Badge className={getStatusColor(latestApplication.status)}>
+   363→                  {latestApplication.status.replace(/_/g, ' ')}
+   364→                </Badge>
+   365→              )}
+   366→            </div>
+   367→          </CardContent>
+   368→        </Card>
+   369→
+   370→        {/* Activation Fee Status */}
+   371→        <Card className="border-l-4 border-l-yellow-500">
+   372→          <CardContent className="p-4">
+   373→            <div className="flex items-center justify-between">
+   374→              <div>
+   375→                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+   376→                  Activation Fee
+   377→                </p>
+   378→                <p className="mt-1 text-lg font-semibold text-[#333333]">
+   379→                  {latestApplication
+   380→                    ? latestApplication.activationPaid
+   381→                      ? 'Paid'
+   382→                      : 'Pending'
+   383→                    : 'N/A'}
+   384→                </p>
+   385→              </div>
+   386→              {latestApplication && (
+   387→                <Badge
+   388→                  className={
+   389→                    latestApplication.activationPaid
+   390→                      ? 'bg-green-100 text-green-800'
+   391→                      : 'bg-yellow-100 text-yellow-800'
+   392→                  }
+   393→                >
+   394→                  {latestApplication.activationPaid ? 'Paid' : 'Pending'}
+   395→                </Badge>
+   396→              )}
+   397→            </div>
+   398→          </CardContent>
+   399→        </Card>
+   400→
+   401→        {/* Available Loan Limit */}
+   402→        <Card className="border-l-4 border-l-[#00A651]">
+   403→          <CardContent className="p-4">
+   404→            <div className="flex items-center justify-between">
+   405→              <div>
+   406→                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+   407→                  Available Limit
+   408→                </p>
+   409→                <p className="mt-1 text-lg font-semibold text-[#333333]">
+   410→                  {isKycVerified ? formatCurrency(500000) : formatCurrency(0)}
+   411→                </p>
+   412→              </div>
+   413→              <DollarSign className="h-8 w-8 text-[#00A651]" />
+   414→            </div>
+   415→          </CardContent>
+   416→        </Card>
+   417→      </div>
+   418→
+   419→      {/* Active Loans */}
+   420→      {activeLoans.length > 0 && (
+   421→        <Card>
+   422→          <CardHeader className="pb-3">
+   423→            <CardTitle className="flex items-center gap-2 text-base font-semibold text-[#333333]">
+   424→              <FileText className="h-5 w-5 text-[#00A651]" />
+   425→              Active Loans
+   426→            </CardTitle>
+   427→          </CardHeader>
+   428→          <CardContent className="px-4 pb-4">
+   429→            <div className="overflow-x-auto rounded-lg border">
+   430→              <Table>
+   431→                <TableHeader>
+   432→                  <TableRow className="bg-gray-50">
+   433→                    <TableHead>Amount</TableHead>
+   434→                    <TableHead>Status</TableHead>
+   435→                    <TableHead>Repayment Date</TableHead>
+   436→                    <TableHead className="text-right">Outstanding</TableHead>
+   437→                  </TableRow>
+   438→                </TableHeader>
+   439→                <TableBody>
+   440→                  {activeLoans.map((loan) => (
+   441→                    <TableRow key={loan.id}>
+   442→                      <TableCell className="font-medium">
+   443→                        {formatCurrency(loan.loanAmount)}
+   444→                      </TableCell>
+   445→                      <TableCell>
+   446→                        <Badge className={getStatusColor(loan.status)}>
+   447→                          {loan.status.replace(/_/g, ' ')}
+   448→                        </Badge>
+   449→                      </TableCell>
+   450→                      <TableCell>{formatDate(loan.repaymentDate)}</TableCell>
+   451→                      <TableCell className="text-right font-medium">
+   452→                        {formatCurrency(loan.totalRepayment)}
+   453→                      </TableCell>
+   454→                    </TableRow>
+   455→                  ))}
+   456→                </TableBody>
+   457→              </Table>
+   458→            </div>
+   459→          </CardContent>
+   460→        </Card>
+   461→      )}
+   462→
+   463→      {/* Recent Notifications */}
+   464→      <Card>
+   465→        <CardHeader className="pb-3">
+   466→          <div className="flex items-center justify-between">
+   467→            <CardTitle className="flex items-center gap-2 text-base font-semibold text-[#333333]">
+   468→              <Bell className="h-5 w-5 text-[#00A651]" />
+   469→              Recent Notifications
+   470→            </CardTitle>
+   471→            {notifs.length > 3 && (
+   472→              <Button
+   473→                variant="ghost"
+   474→                size="sm"
+   475→                className="text-xs text-[#00A651] hover:text-[#008f45]"
+   476→                onClick={() => setActiveView('notifications')}
+   477→              >
+   478→                View All
+   479→                <ChevronRight className="ml-1 h-3 w-3" />
+   480→              </Button>
+   481→            )}
+   482→          </div>
+   483→        </CardHeader>
+   484→        <CardContent className="px-4 pb-4">
+   485→          {notifs.length === 0 ? (
+   486→            <p className="py-4 text-center text-sm text-gray-400">
+   487→              No notifications yet
+   488→            </p>
+   489→          ) : (
+   490→            <div className="space-y-3">
+   491→              {notifs.slice(0, 3).map((notif) => (
+   492→                <div
+   493→                  key={notif.id}
+   494→                  className={`flex items-start gap-3 rounded-lg border p-3 transition-colors cursor-pointer ${
+   495→                    notif.read
+   496→                      ? 'border-gray-100 bg-white'
+   497→                      : 'border-[#00A651]/20 bg-[#00A651]/5'
+   498→                  }`}
+   499→                  onClick={() => !notif.read && markAsRead(notif.id)}
+   500→                >
+   501→                  <div
+   502→                    className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+   503→                      notif.read ? 'bg-gray-100' : 'bg-[#00A651]/10'
+   504→                    }`}
+   505→                  >
+   506→                    <Bell
+   507→                      className={`h-4 w-4 ${
+   508→                        notif.read ? 'text-gray-400' : 'text-[#00A651]'
+   509→                      }`}
+   510→                    />
+   511→                  </div>
+   512→                  <div className="min-w-0 flex-1">
+   513→                    <p
+   514→                      className={`text-sm ${
+   515→                        notif.read
+   516→                          ? 'font-normal text-gray-600'
+   517→                          : 'font-semibold text-[#333333]'
+   518→                      }`}
+   519→                    >
+   520→                      {notif.title}
+   521→                    </p>
+   522→                    <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">
+   523→                      {notif.message}
+   524→                    </p>
+   525→                    <p className="mt-1 text-[10px] text-gray-400">
+   526→                      {formatDate(notif.createdAt)}
+   527→                    </p>
+   528→                  </div>
+   529→                  {!notif.read && (
+   530→                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#00A651]" />
+   531→                  )}
+   532→                </div>
+   533→              ))}
+   534→            </div>
+   535→          )}
+   536→        </CardContent>
+   537→      </Card>
+   538→    </div>
+   539→  );
+   540→
+   541→  // ─── Apply for Loan Section ─────────────────────────────────────
+   542→
+   543→  const renderApply = () => (
+   544→    <div className="space-y-6">
+   545→      <div>
+   546→        <h2 className="text-2xl font-bold text-[#333333]">Apply for Loan</h2>
+   547→        <p className="mt-1 text-sm text-gray-500">
+   548→          Start your loan application process
+   549→        </p>
+   550→      </div>
+   551→
+   552→      {!isKycVerified ? (
+   553→        <Card className="border-yellow-200 bg-yellow-50">
+   554→          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+   555→            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-yellow-100">
+   556→              <Shield className="h-8 w-8 text-yellow-600" />
+   557→            </div>
+   558→            <div>
+   559→              <h3 className="text-lg font-semibold text-[#333333]">
+   560→                Complete KYC Verification First
+   561→              </h3>
+   562→              <p className="mt-2 max-w-md text-sm text-gray-600">
+   563→                You need to complete your KYC verification before you can apply
+   564→                for a loan. This helps us verify your identity and protect your
+   565→                account.
+   566→              </p>
+   567→            </div>
+   568→            <Button
+   569→              className="bg-[#00A651] text-white hover:bg-[#008f45]"
+   570→              size="lg"
+   571→              onClick={() => setActiveView('kyc')}
+   572→            >
+   573→              <Shield className="mr-2 h-4 w-4" />
+   574→              Complete KYC
+   575→            </Button>
+   576→          </CardContent>
+   577→        </Card>
+   578→      ) : (
+   579→        <Card>
+   580→          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+   581→            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+   582→              <CheckCircle2 className="h-8 w-8 text-[#00A651]" />
+   583→            </div>
+   584→            <div>
+   585→              <h3 className="text-lg font-semibold text-[#333333]">
+   586→                You&apos;re Eligible to Apply!
+   587→              </h3>
+   588→              <p className="mt-2 max-w-md text-sm text-gray-600">
+   589→                Your KYC verification is complete. You can now apply for a loan
+   590→                up to {formatCurrency(500000)}.
+   591→              </p>
+   592→            </div>
+   593→            <Button
+   594→              className="bg-[#00A651] text-white hover:bg-[#008f45]"
+   595→              size="lg"
+   596→              onClick={() => setView('loan-apply')}
+   597→            >
+   598→              <PlusCircle className="mr-2 h-4 w-4" />
+   599→              Apply Now
+   600→            </Button>
+   601→          </CardContent>
+   602→        </Card>
+   603→      )}
+   604→    </div>
+   605→  );
+   606→
+   607→  // ─── KYC Verification Section ───────────────────────────────────
+   608→
+   609→  const renderKyc = () => (
+   610→    <div className="space-y-6">
+   611→      <div>
+   612→        <h2 className="text-2xl font-bold text-[#333333]">KYC Verification</h2>
+   613→        <p className="mt-1 text-sm text-gray-500">
+   614→          Manage your identity verification status
+   615→        </p>
+   616→      </div>
+   617→
+   618→      {kycStatus === 'not_submitted' && (
+   619→        <Card className="border-gray-200">
+   620→          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+   621→            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+   622→              <AlertCircle className="h-8 w-8 text-gray-400" />
+   623→            </div>
+   624→            <div>
+   625→              <h3 className="text-lg font-semibold text-[#333333]">
+   626→                KYC Not Submitted
+   627→              </h3>
+   628→              <p className="mt-2 max-w-md text-sm text-gray-600">
+   629→                You haven&apos;t submitted your KYC documents yet. Complete your
+   630→                verification to unlock loan applications.
+   631→              </p>
+   632→            </div>
+   633→            <Button
+   634→              className="bg-[#00A651] text-white hover:bg-[#008f45]"
+   635→              size="lg"
+   636→              onClick={() => setView('kyc')}
+   637→            >
+   638→              <Shield className="mr-2 h-4 w-4" />
+   639→              Complete KYC
+   640→            </Button>
+   641→          </CardContent>
+   642→        </Card>
+   643→      )}
+   644→
+   645→      {kycStatus === 'pending' && (
+   646→        <Card className="border-yellow-200 bg-yellow-50">
+   647→          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+   648→            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-yellow-100">
+   649→              <Loader2 className="h-8 w-8 animate-spin text-yellow-600" />
+   650→            </div>
+   651→            <div>
+   652→              <h3 className="text-lg font-semibold text-[#333333]">
+   653→                Verification In Progress
+   654→              </h3>
+   655→              <p className="mt-2 max-w-md text-sm text-gray-600">
+   656→                Your KYC documents have been submitted and are currently being
+   657→                reviewed. You will be notified once the verification is complete.
+   658→              </p>
+   659→            </div>
+   660→            <Badge className="bg-yellow-100 text-yellow-800 px-4 py-1 text-sm">
+   661→              <Clock className="mr-1 h-3 w-3" />
+   662→              Pending Review
+   663→            </Badge>
+   664→          </CardContent>
+   665→        </Card>
+   666→      )}
+   667→
+   668→      {kycStatus === 'verified' && (
+   669→        <Card className="border-green-200 bg-green-50">
+   670→          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+   671→            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+   672→              <CheckCircle2 className="h-8 w-8 text-[#00A651]" />
+   673→            </div>
+   674→            <div>
+   675→              <h3 className="text-lg font-semibold text-[#333333]">
+   676→                KYC Verified
+   677→              </h3>
+   678→              <p className="mt-2 max-w-md text-sm text-gray-600">
+   679→                Your identity has been successfully verified. You are eligible to
+   680→                apply for loans.
+   681→                {kycData?.verifiedAt && (
+   682→                  <span className="block mt-1 text-xs text-gray-400">
+   683→                    Verified on {formatDate(kycData.verifiedAt)}
+   684→                  </span>
+   685→                )}
+   686→              </p>
+   687→            </div>
+   688→            <Badge className="bg-green-100 text-green-800 px-4 py-1 text-sm">
+   689→              <CheckCircle2 className="mr-1 h-3 w-3" />
+   690→              Verified
+   691→            </Badge>
+   692→          </CardContent>
+   693→        </Card>
+   694→      )}
+   695→
+   696→      {kycStatus === 'rejected' && (
+   697→        <Card className="border-red-200 bg-red-50">
+   698→          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+   699→            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+   700→              <X className="h-8 w-8 text-red-600" />
+   701→            </div>
+   702→            <div>
+   703→              <h3 className="text-lg font-semibold text-[#333333]">
+   704→                KYC Verification Rejected
+   705→              </h3>
+   706→              <p className="mt-2 max-w-md text-sm text-gray-600">
+   707→                Your KYC verification was not approved. Please review the reason
+   708→                below and resubmit your documents.
+   709→              </p>
+   710→              {kycData?.rejectionReason && (
+   711→                <div className="mt-3 rounded-lg border border-red-200 bg-white p-3 text-sm text-red-700">
+   712→                  <strong>Reason:</strong> {kycData.rejectionReason}
+   713→                </div>
+   714→              )}
+   715→            </div>
+   716→            <Button
+   717→              className="bg-[#00A651] text-white hover:bg-[#008f45]"
+   718→              size="lg"
+   719→              onClick={() => setView('kyc')}
+   720→            >
+   721→              <Shield className="mr-2 h-4 w-4" />
+   722→              Resubmit KYC
+   723→            </Button>
+   724→          </CardContent>
+   725→        </Card>
+   726→      )}
+   727→    </div>
+   728→  );
+   729→
+   730→  // ─── Loan History Section ───────────────────────────────────────
+   731→
+   732→  const renderHistory = () => (
+   733→    <div className="space-y-6">
+   734→      <div>
+   735→        <h2 className="text-2xl font-bold text-[#333333]">Loan History</h2>
+   736→        <p className="mt-1 text-sm text-gray-500">
+   737→          View all your loan applications
+   738→        </p>
+   739→      </div>
+   740→
+   741→      {loans.length === 0 ? (
+   742→        <Card>
+   743→          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+   744→            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+   745→              <FileText className="h-8 w-8 text-gray-400" />
+   746→            </div>
+   747→            <div>
+   748→              <h3 className="text-lg font-semibold text-[#333333]">
+   749→                No Loan History
+   750→              </h3>
+   751→              <p className="mt-2 text-sm text-gray-600">
+   752→                You haven&apos;t applied for any loans yet.
+   753→              </p>
+   754→            </div>
+   755→            <Button
+   756→              className="bg-[#00A651] text-white hover:bg-[#008f45]"
+   757→              onClick={() => setActiveView('apply')}
+   758→            >
+   759→              <PlusCircle className="mr-2 h-4 w-4" />
+   760→              Apply for a Loan
+   761→            </Button>
+   762→          </CardContent>
+   763→        </Card>
+   764→      ) : (
+   765→        <Card>
+   766→          <CardContent className="p-0">
+   767→            <div className="overflow-x-auto">
+   768→              <Table>
+   769→                <TableHeader>
+   770→                  <TableRow className="bg-gray-50">
+   771→                    <TableHead>Date</TableHead>
+   772→                    <TableHead>Amount</TableHead>
+   773→                    <TableHead>Processing Fee</TableHead>
+   774→                    <TableHead>Net Amount</TableHead>
+   775→                    <TableHead>Repayment</TableHead>
+   776→                    <TableHead>Status</TableHead>
+   777→                    <TableHead>Repayment Date</TableHead>
+   778→                  </TableRow>
+   779→                </TableHeader>
+   780→                <TableBody>
+   781→                  {loans.map((loan) => (
+   782→                    <TableRow key={loan.id}>
+   783→                      <TableCell className="text-xs">
+   784→                        {formatDate(loan.createdAt)}
+   785→                      </TableCell>
+   786→                      <TableCell className="font-medium">
+   787→                        {formatCurrency(loan.loanAmount)}
+   788→                      </TableCell>
+   789→                      <TableCell className="text-red-600">
+   790→                        {formatCurrency(loan.processingFee)}
+   791→                      </TableCell>
+   792→                      <TableCell className="font-medium text-[#00A651]">
+   793→                        {formatCurrency(loan.amountReceived)}
+   794→                      </TableCell>
+   795→                      <TableCell>
+   796→                        {formatCurrency(loan.totalRepayment)}
+   797→                      </TableCell>
+   798→                      <TableCell>
+   799→                        <Badge className={getStatusColor(loan.status)}>
+   800→                          {loan.status.replace(/_/g, ' ')}
+   801→                        </Badge>
+   802→                      </TableCell>
+   803→                      <TableCell className="text-xs">
+   804→                        {formatDate(loan.repaymentDate)}
+   805→                      </TableCell>
+   806→                    </TableRow>
+   807→                  ))}
+   808→                </TableBody>
+   809→              </Table>
+   810→            </div>
+   811→          </CardContent>
+   812→        </Card>
+   813→      )}
+   814→    </div>
+   815→  );
+   816→
+   817→  // ─── Notifications Section ──────────────────────────────────────
+   818→
+   819→  const renderNotifications = () => (
+   820→    <div className="space-y-6">
+   821→      <div className="flex items-center justify-between">
+   822→        <div>
+   823→          <h2 className="text-2xl font-bold text-[#333333]">Notifications</h2>
+   824→          <p className="mt-1 text-sm text-gray-500">
+   825→            {unreadCount > 0
+   826→              ? `You have ${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}`
+   827→              : 'All caught up!'}
+   828→          </p>
+   829→        </div>
+   830→        {unreadCount > 0 && (
+   831→          <Button
+   832→            variant="outline"
+   833→            size="sm"
+   834→            className="text-[#00A651] border-[#00A651] hover:bg-[#00A651]/10"
+   835→            onClick={async () => {
+   836→              for (const n of notifs.filter((nf) => !nf.read)) {
+   837→                await markAsRead(n.id);
+   838→              }
+   839→            }}
+   840→          >
+   841→            <Eye className="mr-1 h-3 w-3" />
+   842→            Mark All Read
+   843→          </Button>
+   844→        )}
+   845→      </div>
+   846→
+   847→      {notifs.length === 0 ? (
+   848→        <Card>
+   849→          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+   850→            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+   851→              <Bell className="h-8 w-8 text-gray-400" />
+   852→            </div>
+   853→            <div>
+   854→              <h3 className="text-lg font-semibold text-[#333333]">
+   855→                No Notifications
+   856→              </h3>
+   857→              <p className="mt-2 text-sm text-gray-600">
+   858→                You don&apos;t have any notifications at the moment.
+   859→              </p>
+   860→            </div>
+   861→          </CardContent>
+   862→        </Card>
+   863→      ) : (
+   864→        <div className="space-y-3">
+   865→          {notifs.map((notif) => (
+   866→            <Card
+   867→              key={notif.id}
+   868→              className={`cursor-pointer transition-colors ${
+   869→                notif.read
+   870→                  ? 'border-gray-200'
+   871→                  : 'border-[#00A651]/30 bg-[#00A651]/5'
+   872→              }`}
+   873→              onClick={() => !notif.read && markAsRead(notif.id)}
+   874→            >
+   875→              <CardContent className="flex items-start gap-4 p-4">
+   876→                <div
+   877→                  className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+   878→                    notif.read ? 'bg-gray-100' : 'bg-[#00A651]/10'
+   879→                  }`}
+   880→                >
+   881→                  <Bell
+   882→                    className={`h-5 w-5 ${
+   883→                      notif.read ? 'text-gray-400' : 'text-[#00A651]'
+   884→                    }`}
+   885→                  />
+   886→                </div>
+   887→                <div className="min-w-0 flex-1">
+   888→                  <div className="flex items-center gap-2">
+   889→                    <h4
+   890→                      className={`text-sm ${
+   891→                        notif.read
+   892→                          ? 'font-normal text-gray-700'
+   893→                          : 'font-semibold text-[#333333]'
+   894→                      }`}
+   895→                    >
+   896→                      {notif.title}
+   897→                    </h4>
+   898→                    {!notif.read && (
+   899→                      <span className="h-2 w-2 shrink-0 rounded-full bg-[#00A651]" />
+   900→                    )}
+   901→                  </div>
+   902→                  <p className="mt-1 text-sm text-gray-500">{notif.message}</p>
+   903→                  <p className="mt-2 text-xs text-gray-400">
+   904→                    {formatDate(notif.createdAt)}
+   905→                  </p>
+   906→                </div>
+   907→              </CardContent>
+   908→            </Card>
+   909→          ))}
+   910→        </div>
+   911→      )}
+   912→    </div>
+   913→  );
+   914→
+   915→  // ─── Account Settings Section ───────────────────────────────────
+   916→
+   917→  const renderSettings = () => (
+   918→    <div className="space-y-6">
+   919→      <div>
+   920→        <h2 className="text-2xl font-bold text-[#333333]">Account Settings</h2>
+   921→        <p className="mt-1 text-sm text-gray-500">
+   922→          Manage your account information
+   923→        </p>
+   924→      </div>
+   925→
+   926→      <Card>
+   927→        <CardHeader>
+   928→          <CardTitle className="text-base font-semibold text-[#333333]">
+   929→            Personal Information
+   930→          </CardTitle>
+   931→          <CardDescription>
+   932→            Your account details
+   933→          </CardDescription>
+   934→        </CardHeader>
+   935→        <CardContent className="space-y-5">
+   936→          <div className="flex items-center gap-4">
+   937→            <Avatar className="h-16 w-16">
+   938→              <AvatarFallback className="bg-[#00A651] text-xl font-bold text-white">
+   939→                {user?.fullName?.charAt(0)?.toUpperCase() || 'U'}
+   940→              </AvatarFallback>
+   941→            </Avatar>
+   942→            <div>
+   943→              <p className="text-lg font-semibold text-[#333333]">
+   944→                {user?.fullName || 'User'}
+   945→              </p>
+   946→              <p className="text-sm text-gray-500">
+   947→                Member since {user?.id ? '2024' : 'N/A'}
+   948→              </p>
+   949→            </div>
+   950→          </div>
+   951→
+   952→          <Separator />
+   953→
+   954→          <div className="space-y-4">
+   955→            <div className="flex items-start gap-3 rounded-lg border p-3">
+   956→              <User className="mt-0.5 h-5 w-5 shrink-0 text-[#00A651]" />
+   957→              <div>
+   958→                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+   959→                  Full Name
+   960→                </p>
+   961→                <p className="mt-0.5 text-sm font-medium text-[#333333]">
+   962→                  {user?.fullName || 'Not provided'}
+   963→                </p>
+   964→              </div>
+   965→            </div>
+   966→
+   967→            <div className="flex items-start gap-3 rounded-lg border p-3">
+   968→              <Mail className="mt-0.5 h-5 w-5 shrink-0 text-[#00A651]" />
+   969→              <div>
+   970→                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+   971→                  Email Address
+   972→                </p>
+   973→                <p className="mt-0.5 text-sm font-medium text-[#333333]">
+   974→                  {user?.email || 'Not provided'}
+   975→                </p>
+   976→              </div>
+   977→            </div>
+   978→
+   979→            <div className="flex items-start gap-3 rounded-lg border p-3">
+   980→              <Phone className="mt-0.5 h-5 w-5 shrink-0 text-[#00A651]" />
+   981→              <div>
+   982→                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+   983→                  Phone Number
+   984→                </p>
+   985→                <p className="mt-0.5 text-sm font-medium text-[#333333]">
+   986→                  {user?.phone || 'Not provided'}
+   987→                </p>
+   988→              </div>
+   989→            </div>
+   990→          </div>
+   991→
+   992→          <Separator />
+   993→
+   994→          <div>
+   995→            <h3 className="text-sm font-semibold text-[#333333]">
+   996→              Change Password
+   997→            </h3>
+   998→            <p className="mt-1 text-xs text-gray-500">
+   999→              Password change functionality will be available soon.
+  1000→            </p>
+  1001→            <Button
+  1002→              variant="outline"
+  1003→              className="mt-3 text-gray-400"
+  1004→              disabled
+  1005→            >
+  1006→              <Lock className="mr-2 h-4 w-4" />
+  1007→              Change Password (Coming Soon)
+  1008→            </Button>
+  1009→          </div>
+  1010→        </CardContent>
+  1011→      </Card>
+  1012→    </div>
+  1013→  );
+  1014→
+  1015→  // ─── View Renderer ──────────────────────────────────────────────
+  1016→
+  1017→  const renderView = () => {
+  1018→    switch (activeView) {
+  1019→      case 'overview':
+  1020→        return renderOverview();
+  1021→      case 'apply':
+  1022→        return renderApply();
+  1023→      case 'kyc':
+  1024→        return renderKyc();
+  1025→      case 'history':
+  1026→        return renderHistory();
+  1027→      case 'notifications':
+  1028→        return renderNotifications();
+  1029→      case 'settings':
+  1030→        return renderSettings();
+  1031→      default:
+  1032→        return renderOverview();
+  1033→    }
+  1034→  };
+  1035→
+  1036→  // ─── Main Render ────────────────────────────────────────────────
+  1037→
+  1038→  if (loading) {
+  1039→    return (
+  1040→      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+  1041→        <div className="flex flex-col items-center gap-3">
+  1042→          <Loader2 className="h-10 w-10 animate-spin text-[#00A651]" />
+  1043→          <p className="text-sm font-medium text-gray-500">
+  1044→            Loading dashboard...
+  1045→          </p>
+  1046→        </div>
+  1047→      </div>
+  1048→    );
+  1049→  }
+  1050→
+  1051→  return (
+  1052→    <div className="flex min-h-screen bg-gray-50">
+  1053→      {/* Desktop Sidebar */}
+  1054→      <aside className="hidden w-64 shrink-0 border-r border-gray-200 bg-white lg:block">
+  1055→        <ScrollArea className="h-screen">{sidebarContent}</ScrollArea>
+  1056→      </aside>
+  1057→
+  1058→      {/* Mobile Sidebar Overlay */}
+  1059→      {sidebarOpen && (
+  1060→        <div className="fixed inset-0 z-50 lg:hidden">
+  1061→          <div
+  1062→            className="absolute inset-0 bg-black/50"
+  1063→            onClick={() => setSidebarOpen(false)}
+  1064→          />
+  1065→          <aside className="absolute inset-y-0 left-0 w-64 bg-white shadow-xl">
+  1066→            <div className="absolute right-3 top-4">
+  1067→              <button
+  1068→                onClick={() => setSidebarOpen(false)}
+  1069→                className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100"
+  1070→                aria-label="Close sidebar"
+  1071→              >
+  1072→                <X className="h-5 w-5" />
+  1073→              </button>
+  1074→            </div>
+  1075→            {sidebarContent}
+  1076→          </aside>
+  1077→        </div>
+  1078→      )}
+  1079→
+  1080→      {/* Main Content Area */}
+  1081→      <div className="flex flex-1 flex-col min-w-0">
+  1082→        {/* Top Header */}
+  1083→        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 sm:px-6">
+  1084→          <div className="flex items-center gap-3">
+  1085→            <button
+  1086→              className="flex h-9 w-9 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 lg:hidden"
+  1087→              onClick={() => setSidebarOpen(true)}
+  1088→              aria-label="Open sidebar"
+  1089→            >
+  1090→              <Menu className="h-5 w-5" />
+  1091→            </button>
+  1092→            <div>
+  1093→              <h1 className="text-lg font-semibold text-[#333333]">
+  1094→                {navItems.find((item) => item.id === activeView)?.label || 'Dashboard'}
+  1095→              </h1>
+  1096→            </div>
+  1097→          </div>
+  1098→          <div className="flex items-center gap-3">
+  1099→            <button
+  1100→              className="relative flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 transition-colors"
+  1101→              onClick={() => setActiveView('notifications')}
+  1102→              aria-label="View notifications"
+  1103→            >
+  1104→              <Bell className="h-5 w-5" />
+  1105→              {unreadCount > 0 && (
+  1106→                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+  1107→                  {unreadCount > 9 ? '9+' : unreadCount}
+  1108→                </span>
+  1109→              )}
+  1110→            </button>
+  1111→            <div className="hidden items-center gap-2 sm:flex">
+  1112→              <Avatar className="h-8 w-8">
+  1113→                <AvatarFallback className="bg-[#00A651] text-xs font-semibold text-white">
+  1114→                  {user?.fullName?.charAt(0)?.toUpperCase() || 'U'}
+  1115→                </AvatarFallback>
+  1116→              </Avatar>
+  1117→              <span className="text-sm font-medium text-[#333333]">
+  1118→                {user?.fullName?.split(' ')[0] || 'User'}
+  1119→              </span>
+  1120→            </div>
+  1121→          </div>
+  1122→        </header>
+  1123→
+  1124→        {/* Content */}
+  1125→        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+  1126→          {renderView()}
+  1127→        </main>
+  1128→      </div>
+  1129→    </div>
+  1130→  );
+  1131→}
+  1132→

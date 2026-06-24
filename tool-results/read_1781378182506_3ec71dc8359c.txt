@@ -1,0 +1,2002 @@
+     1→'use client';
+     2→
+     3→import React, { useState, useEffect, useCallback } from 'react';
+     4→import { useAppStore } from '@/components/store';
+     5→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+     6→import { Button } from '@/components/ui/button';
+     7→import { Badge } from '@/components/ui/badge';
+     8→import {
+     9→  Table,
+    10→  TableBody,
+    11→  TableCell,
+    12→  TableHead,
+    13→  TableHeader,
+    14→  TableRow,
+    15→} from '@/components/ui/table';
+    16→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    17→import {
+    18→  Dialog,
+    19→  DialogContent,
+    20→  DialogDescription,
+    21→  DialogFooter,
+    22→  DialogHeader,
+    23→  DialogTitle,
+    24→} from '@/components/ui/dialog';
+    25→import {
+    26→  AlertDialog,
+    27→  AlertDialogAction,
+    28→  AlertDialogCancel,
+    29→  AlertDialogContent,
+    30→  AlertDialogDescription,
+    31→  AlertDialogFooter,
+    32→  AlertDialogHeader,
+    33→  AlertDialogTitle,
+    34→} from '@/components/ui/alert-dialog';
+    35→import { Input } from '@/components/ui/input';
+    36→import { Label } from '@/components/ui/label';
+    37→import {
+    38→  Select,
+    39→  SelectContent,
+    40→  SelectItem,
+    41→  SelectTrigger,
+    42→  SelectValue,
+    43→} from '@/components/ui/select';
+    44→import { Separator } from '@/components/ui/separator';
+    45→import { ScrollArea } from '@/components/ui/scroll-area';
+    46→import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+    47→import { Textarea } from '@/components/ui/textarea';
+    48→import { Progress } from '@/components/ui/progress';
+    49→import Image from 'next/image';
+    50→import {
+    51→  LayoutDashboard,
+    52→  Users,
+    53→  FileText,
+    54→  ShieldCheck,
+    55→  CreditCard,
+    56→  Package,
+    57→  Bell,
+    58→  BarChart3,
+    59→  LogOut,
+    60→  Menu,
+    61→  X,
+    62→  Search,
+    63→  ChevronLeft,
+    64→  ChevronRight,
+    65→  Loader2,
+    66→  CheckCircle2,
+    67→  XCircle,
+    68→  Eye,
+    69→  Send,
+    70→  TrendingUp,
+    71→  UsersRound,
+    72→  Banknote,
+    73→  AlertCircle,
+    74→  DollarSign,
+    75→  Clock,
+    76→  UserCheck,
+    77→  Download,
+    78→  Activity,
+    79→  UserX,
+    80→  FileDown,
+    81→  ImageIcon,
+    82→  ExternalLink,
+    83→  RefreshCw,
+    84→  ArrowUpRight,
+    85→  ArrowDownRight,
+    86→  Calendar,
+    87→} from 'lucide-react';
+    88→
+    89→// --- Types ---
+    90→type Section =
+    91→  | 'overview'
+    92→  | 'users'
+    93→  | 'applications'
+    94→  | 'kyc'
+    95→  | 'payments'
+    96→  | 'products'
+    97→  | 'notifications'
+    98→  | 'reports'
+    99→  | 'activity';
+   100→
+   101→interface AdminStats {
+   102→  totalUsers: number;
+   103→  totalApplications: number;
+   104→  pendingKYC: number;
+   105→  pendingReview: number;
+   106→  approvedLoans: number;
+   107→  rejectedLoans: number;
+   108→  totalDisbursed: number;
+   109→}
+   110→
+   111→interface AdminUser {
+   112→  id: string;
+   113→  fullName: string;
+   114→  phone: string;
+   115→  email: string;
+   116→  role: string;
+   117→  isActive: boolean;
+   118→  createdAt: string;
+   119→  kycStatus: string;
+   120→  kycVerifiedAt: string | null;
+   121→  loanCount: number;
+   122→}
+   123→
+   124→interface UserDetail {
+   125→  id: string;
+   126→  fullName: string;
+   127→  phone: string;
+   128→  email: string;
+   129→  role: string;
+   130→  isActive: boolean;
+   131→  createdAt: string;
+   132→  kyc: {
+   133→    id: string;
+   134→    legalName: string;
+   135→    nationalId: string;
+   136→    idFrontImage: string;
+   137→    idBackImage: string;
+   138→    residentialAddress: string;
+   139→    dateOfBirth: string;
+   140→    status: string;
+   141→    verifiedAt: string | null;
+   142→  } | null;
+   143→  loanApps: LoanApplication[];
+   144→  payments: PaymentRecord[];
+   145→  activityLogs: { id: string; action: string; details: string; createdAt: string }[];
+   146→}
+   147→
+   148→interface LoanApplication {
+   149→  id: string;
+   150→  userId: string;
+   151→  loanAmount: number;
+   152→  processingFee: number;
+   153→  amountReceived: number;
+   154→  totalRepayment: number;
+   155→  repaymentDate: string;
+   156→  status: string;
+   157→  activationPaid: boolean;
+   158→  activationRef: string | null;
+   159→  paymentRef: string | null;
+   160→  reviewedAt: string | null;
+   161→  createdAt: string;
+   162→  updatedAt: string;
+   163→  user: {
+   164→    id: string;
+   165→    fullName: string;
+   166→    phone: string;
+   167→    email: string;
+   168→    kyc: { status: string } | null;
+   169→  };
+   170→}
+   171→
+   172→interface KYCRecord {
+   173→  id: string;
+   174→  userId: string;
+   175→  legalName: string;
+   176→  nationalId: string;
+   177→  idFrontImage: string;
+   178→  idBackImage: string;
+   179→  residentialAddress: string;
+   180→  dateOfBirth: string;
+   181→  status: string;
+   182→  verifiedAt: string | null;
+   183→  createdAt: string;
+   184→  user: {
+   185→    id: string;
+   186→    fullName: string;
+   187→    email: string;
+   188→    phone: string;
+   189→  };
+   190→}
+   191→
+   192→interface PaymentRecord {
+   193→  id: string;
+   194→  userId: string;
+   195→  applicationId: string | null;
+   196→  transactionId: string;
+   197→  paymentRef: string;
+   198→  phoneNumber: string;
+   199→  amount: number;
+   200→  status: string;
+   201→  type: string;
+   202→  createdAt: string;
+   203→  user: {
+   204→    id: string;
+   205→    fullName: string;
+   206→    phone: string;
+   207→    email: string;
+   208→  };
+   209→}
+   210→
+   211→interface ActivityLog {
+   212→  id: string;
+   213→  action: string;
+   214→  details: string;
+   215→  createdAt: string;
+   216→  user: {
+   217→    fullName: string;
+   218→    email: string;
+   219→  } | null;
+   220→}
+   221→
+   222→interface MonthlyStat {
+   223→  month: string;
+   224→  applications: number;
+   225→  approved: number;
+   226→  disbursed: number;
+   227→}
+   228→
+   229→interface LoanProduct {
+   230→  amount: number;
+   231→  processingFee: number;
+   232→}
+   233→
+   234→// --- Helper functions ---
+   235→function formatCurrency(amount: number): string {
+   236→  return new Intl.NumberFormat('en-KE', {
+   237→    style: 'currency',
+   238→    currency: 'KES',
+   239→    minimumFractionDigits: 0,
+   240→    maximumFractionDigits: 0,
+   241→  }).format(amount);
+   242→}
+   243→
+   244→function getStatusColor(status: string): string {
+   245→  switch (status) {
+   246→    case 'approved':
+   247→    case 'verified':
+   248→    case 'completed':
+   249→      return 'bg-green-100 text-green-800';
+   250→    case 'submitted_for_review':
+   251→    case 'pending':
+   252→    case 'pending_activation':
+   253→      return 'bg-yellow-100 text-yellow-800';
+   254→    case 'rejected':
+   255→      return 'bg-red-100 text-red-800';
+   256→    default:
+   257→      return 'bg-gray-100 text-gray-800';
+   258→  }
+   259→}
+   260→
+   261→function formatDate(dateStr: string): string {
+   262→  return new Date(dateStr).toLocaleDateString('en-KE', {
+   263→    year: 'numeric',
+   264→    month: 'short',
+   265→    day: 'numeric',
+   266→  });
+   267→}
+   268→
+   269→function formatDateTime(dateStr: string): string {
+   270→  return new Date(dateStr).toLocaleString('en-KE', {
+   271→    year: 'numeric',
+   272→    month: 'short',
+   273→    day: 'numeric',
+   274→    hour: '2-digit',
+   275→    minute: '2-digit',
+   276→  });
+   277→}
+   278→
+   279→function formatStatus(status: string): string {
+   280→  return status
+   281→    .split('_')
+   282→    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+   283→    .join(' ');
+   284→}
+   285→
+   286→// --- Navigation items ---
+   287→const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
+   288→  { id: 'overview', label: 'Dashboard Overview', icon: <LayoutDashboard className="size-5" /> },
+   289→  { id: 'users', label: 'Users Management', icon: <Users className="size-5" /> },
+   290→  { id: 'applications', label: 'Loan Applications', icon: <FileText className="size-5" /> },
+   291→  { id: 'kyc', label: 'KYC Verification', icon: <ShieldCheck className="size-5" /> },
+   292→  { id: 'payments', label: 'Payment Records', icon: <CreditCard className="size-5" /> },
+   293→  { id: 'products', label: 'Loan Products', icon: <Package className="size-5" /> },
+   294→  { id: 'activity', label: 'Activity Logs', icon: <Activity className="size-5" /> },
+   295→  { id: 'notifications', label: 'Notifications', icon: <Bell className="size-5" /> },
+   296→  { id: 'reports', label: 'Reports & Export', icon: <BarChart3 className="size-5" /> },
+   297→];
+   298→
+   299→// --- Main Component ---
+   300→export default function AdminDashboard() {
+   301→  const { user, logout, setView } = useAppStore();
+   302→  const [activeSection, setActiveSection] = useState<Section>('overview');
+   303→  const [sidebarOpen, setSidebarOpen] = useState(false);
+   304→  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+   305→
+   306→  // --- Data states ---
+   307→  const [stats, setStats] = useState<AdminStats | null>(null);
+   308→  const [monthlyStats, setMonthlyStats] = useState<MonthlyStat[]>([]);
+   309→  const [users, setUsers] = useState<AdminUser[]>([]);
+   310→  const [usersPagination, setUsersPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+   311→  const [usersSearch, setUsersSearch] = useState('');
+   312→  const [applications, setApplications] = useState<LoanApplication[]>([]);
+   313→  const [applicationsPagination, setApplicationsPagination] = useState({
+   314→    page: 1,
+   315→    totalPages: 1,
+   316→    total: 0,
+   317→  });
+   318→  const [applicationsFilter, setApplicationsFilter] = useState('all');
+   319→  const [kycRecords, setKycRecords] = useState<KYCRecord[]>([]);
+   320→  const [payments, setPayments] = useState<PaymentRecord[]>([]);
+   321→  const [paymentsFilter, setPaymentsFilter] = useState('all');
+   322→  const [loanProducts, setLoanProducts] = useState<LoanProduct[]>([]);
+   323→  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+   324→
+   325→  // --- Detail states ---
+   326→  const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
+   327→  const [userDetailOpen, setUserDetailOpen] = useState(false);
+   328→  const [userDetailLoading, setUserDetailLoading] = useState(false);
+   329→
+   330→  // --- Loading states ---
+   331→  const [loadingStats, setLoadingStats] = useState(false);
+   332→  const [loadingUsers, setLoadingUsers] = useState(false);
+   333→  const [loadingApplications, setLoadingApplications] = useState(false);
+   334→  const [loadingKyc, setLoadingKyc] = useState(false);
+   335→  const [loadingPayments, setLoadingPayments] = useState(false);
+   336→  const [loadingProducts, setLoadingProducts] = useState(false);
+   337→  const [loadingActivity, setLoadingActivity] = useState(false);
+   338→
+   339→  // --- Dialog states ---
+   340→  const [reviewDialog, setReviewDialog] = useState<{
+   341→    open: boolean;
+   342→    applicationId: string;
+   343→    action: 'approve' | 'reject';
+   344→    applicantName: string;
+   345→    amount: number;
+   346→  }>({ open: false, applicationId: '', action: 'approve', applicantName: '', amount: 0 });
+   347→  const [reviewReason, setReviewReason] = useState('');
+   348→  const [reviewLoading, setReviewLoading] = useState(false);
+   349→
+   350→  const [kycDialog, setKycDialog] = useState<{
+   351→    open: boolean;
+   352→    userId: string;
+   353→    action: 'verify' | 'reject';
+   354→    name: string;
+   355→  }>({ open: false, userId: '', action: 'verify', name: '' });
+   356→  const [kycReason, setKycReason] = useState('');
+   357→  const [kycLoading, setKycLoading] = useState(false);
+   358→
+   359→  const [kycDetailDialog, setKycDetailDialog] = useState<{
+   360→    open: boolean;
+   361→    kyc: KYCRecord | null;
+   362→  }>({ open: false, kyc: null });
+   363→
+   364→  const [kycImageDialog, setKycImageDialog] = useState<{
+   365→    open: boolean;
+   366→    imageUrl: string;
+   367→    label: string;
+   368→    kycId: string;
+   369→    side: 'front' | 'back';
+   370→  }>({ open: false, imageUrl: '', label: '', kycId: '', side: 'front' });
+   371→
+   372→  const [notifForm, setNotifForm] = useState({ userId: '', title: '', message: '' });
+   373→  const [notifLoading, setNotifLoading] = useState(false);
+   374→  const [notifSuccess, setNotifSuccess] = useState(false);
+   375→
+   376→  // --- Auth check ---
+   377→  useEffect(() => {
+   378→    if (!user || user.role !== 'admin') {
+   379→      setView('landing');
+   380→    }
+   381→  }, [user, setView]);
+   382→
+   383→  // --- Fetch functions ---
+   384→  const fetchStats = useCallback(async () => {
+   385→    setLoadingStats(true);
+   386→    try {
+   387→      const res = await fetch('/api/admin/stats');
+   388→      if (res.ok) {
+   389→        const data = await res.json();
+   390→        setStats(data);
+   391→      }
+   392→      // Also fetch monthly stats from reports
+   393→      const reportRes = await fetch('/api/admin/reports?type=summary');
+   394→      if (reportRes.ok) {
+   395→        const reportData = await reportRes.json();
+   396→        setMonthlyStats(reportData.monthlyStats || []);
+   397→      }
+   398→    } catch {
+   399→      // silently fail
+   400→    } finally {
+   401→      setLoadingStats(false);
+   402→    }
+   403→  }, []);
+   404→
+   405→  const fetchUsers = useCallback(async (page = 1) => {
+   406→    setLoadingUsers(true);
+   407→    try {
+   408→      const res = await fetch(`/api/admin/users?page=${page}&limit=10`);
+   409→      if (res.ok) {
+   410→        const data = await res.json();
+   411→        setUsers(data.users || []);
+   412→        setUsersPagination(data.pagination || { page: 1, totalPages: 1, total: 0 });
+   413→      }
+   414→    } catch {
+   415→      // silently fail
+   416→    } finally {
+   417→      setLoadingUsers(false);
+   418→    }
+   419→  }, []);
+   420→
+   421→  const fetchApplications = useCallback(async (page = 1, status = '') => {
+   422→    setLoadingApplications(true);
+   423→    try {
+   424→      const statusParam = status && status !== 'all' ? `&status=${status}` : '';
+   425→      const res = await fetch(`/api/admin/applications?page=${page}&limit=10${statusParam}`);
+   426→      if (res.ok) {
+   427→        const data = await res.json();
+   428→        setApplications(data.applications || []);
+   429→        setApplicationsPagination(
+   430→          data.pagination || { page: 1, totalPages: 1, total: 0 }
+   431→        );
+   432→      }
+   433→    } catch {
+   434→      // silently fail
+   435→    } finally {
+   436→      setLoadingApplications(false);
+   437→    }
+   438→  }, []);
+   439→
+   440→  const fetchKycRecords = useCallback(async () => {
+   441→    setLoadingKyc(true);
+   442→    try {
+   443→      const res = await fetch('/api/admin/kyc');
+   444→      if (res.ok) {
+   445→        const data = await res.json();
+   446→        setKycRecords(data.records || []);
+   447→      }
+   448→    } catch {
+   449→      // silently fail
+   450→    } finally {
+   451→      setLoadingKyc(false);
+   452→    }
+   453→  }, []);
+   454→
+   455→  const fetchPayments = useCallback(async () => {
+   456→    setLoadingPayments(true);
+   457→    try {
+   458→      const res = await fetch('/api/admin/payments');
+   459→      if (res.ok) {
+   460→        const data = await res.json();
+   461→        setPayments(data.payments || []);
+   462→      }
+   463→    } catch {
+   464→      // silently fail
+   465→    } finally {
+   466→      setLoadingPayments(false);
+   467→    }
+   468→  }, []);
+   469→
+   470→  const fetchLoanProducts = useCallback(async () => {
+   471→    setLoadingProducts(true);
+   472→    try {
+   473→      const res = await fetch('/api/loans/products');
+   474→      if (res.ok) {
+   475→        const data = await res.json();
+   476→        setLoanProducts(data.products || []);
+   477→      }
+   478→    } catch {
+   479→      // silently fail
+   480→    } finally {
+   481→      setLoadingProducts(false);
+   482→    }
+   483→  }, []);
+   484→
+   485→  const fetchActivityLogs = useCallback(async () => {
+   486→    setLoadingActivity(true);
+   487→    try {
+   488→      const res = await fetch('/api/admin/reports?type=activity');
+   489→      if (res.ok) {
+   490→        const data = await res.json();
+   491→        setActivityLogs(data.logs || []);
+   492→      }
+   493→    } catch {
+   494→      // silently fail
+   495→    } finally {
+   496→      setLoadingActivity(false);
+   497→    }
+   498→  }, []);
+   499→
+   500→  // --- Data fetching on section change ---
+   501→  useEffect(() => {
+   502→    switch (activeSection) {
+   503→      case 'overview':
+   504→        fetchStats();
+   505→        break;
+   506→      case 'users':
+   507→        fetchUsers(1);
+   508→        break;
+   509→      case 'applications':
+   510→        fetchApplications(1, applicationsFilter);
+   511→        break;
+   512→      case 'kyc':
+   513→        fetchKycRecords();
+   514→        break;
+   515→      case 'payments':
+   516→        fetchPayments();
+   517→        break;
+   518→      case 'products':
+   519→        fetchLoanProducts();
+   520→        break;
+   521→      case 'activity':
+   522→        fetchActivityLogs();
+   523→        break;
+   524→    }
+   525→  }, [activeSection, fetchStats, fetchUsers, fetchApplications, fetchKycRecords, fetchPayments, fetchLoanProducts, fetchActivityLogs, applicationsFilter]);
+   526→
+   527→  // --- Mutation handlers ---
+   528→  const handleReviewApplication = async () => {
+   529→    setReviewLoading(true);
+   530→    try {
+   531→      const res = await fetch(`/api/admin/applications/${reviewDialog.applicationId}/review`, {
+   532→        method: 'POST',
+   533→        headers: { 'Content-Type': 'application/json' },
+   534→        body: JSON.stringify({
+   535→          action: reviewDialog.action,
+   536→          reason: reviewReason,
+   537→        }),
+   538→      });
+   539→      if (res.ok) {
+   540→        fetchApplications(applicationsPagination.page, applicationsFilter);
+   541→        fetchStats();
+   542→      }
+   543→    } catch {
+   544→      // silently fail
+   545→    } finally {
+   546→      setReviewLoading(false);
+   547→      setReviewDialog({ open: false, applicationId: '', action: 'approve', applicantName: '', amount: 0 });
+   548→      setReviewReason('');
+   549→    }
+   550→  };
+   551→
+   552→  const handleVerifyKyc = async () => {
+   553→    setKycLoading(true);
+   554→    try {
+   555→      const res = await fetch(`/api/admin/kyc/${kycDialog.userId}/verify`, {
+   556→        method: 'POST',
+   557→        headers: { 'Content-Type': 'application/json' },
+   558→        body: JSON.stringify({
+   559→          action: kycDialog.action,
+   560→          reason: kycReason,
+   561→        }),
+   562→      });
+   563→      if (res.ok) {
+   564→        fetchKycRecords();
+   565→        fetchStats();
+   566→      }
+   567→    } catch {
+   568→      // silently fail
+   569→    } finally {
+   570→      setKycLoading(false);
+   571→      setKycDialog({ open: false, userId: '', action: 'verify', name: '' });
+   572→      setKycReason('');
+   573→    }
+   574→  };
+   575→
+   576→  const handleSendNotification = async () => {
+   577→    if (!notifForm.userId || !notifForm.title || !notifForm.message) return;
+   578→    setNotifLoading(true);
+   579→    try {
+   580→      const res = await fetch('/api/admin/notifications', {
+   581→        method: 'POST',
+   582→        headers: { 'Content-Type': 'application/json' },
+   583→        body: JSON.stringify(notifForm),
+   584→      });
+   585→      if (res.ok) {
+   586→        setNotifSuccess(true);
+   587→        setNotifForm({ userId: '', title: '', message: '' });
+   588→        setTimeout(() => setNotifSuccess(false), 3000);
+   589→      }
+   590→    } catch {
+   591→      // silently fail
+   592→    } finally {
+   593→      setNotifLoading(false);
+   594→    }
+   595→  };
+   596→
+   597→  const handleViewUserDetail = async (userId: string) => {
+   598→    setUserDetailLoading(true);
+   599→    setUserDetailOpen(true);
+   600→    try {
+   601→      const res = await fetch(`/api/admin/users/${userId}`);
+   602→      if (res.ok) {
+   603→        const data = await res.json();
+   604→        setUserDetail(data.user);
+   605→      }
+   606→    } catch {
+   607→      // silently fail
+   608→    } finally {
+   609→      setUserDetailLoading(false);
+   610→    }
+   611→  };
+   612→
+   613→  const handleToggleUserActive = async (userId: string, isActive: boolean) => {
+   614→    try {
+   615→      const res = await fetch(`/api/admin/users/${userId}`, {
+   616→        method: 'PATCH',
+   617→        headers: { 'Content-Type': 'application/json' },
+   618→        body: JSON.stringify({ isActive: !isActive }),
+   619→      });
+   620→      if (res.ok) {
+   621→        fetchUsers(usersPagination.page);
+   622→        fetchStats();
+   623→      }
+   624→    } catch {
+   625→      // silently fail
+   626→    }
+   627→  };
+   628→
+   629→  const handleDownloadKycDocument = (kycId: string, side: 'front' | 'back', userName: string) => {
+   630→    const url = `/api/admin/kyc/${kycId}/download?side=${side}`;
+   631→    const link = document.createElement('a');
+   632→    link.href = url;
+   633→    link.download = `${userName.replace(/\s+/g, '_')}_ID_${side}.png`;
+   634→    document.body.appendChild(link);
+   635→    link.click();
+   636→    document.body.removeChild(link);
+   637→  };
+   638→
+   639→  const handleLogout = () => {
+   640→    logout();
+   641→    setView('landing');
+   642→  };
+   643→
+   644→  // --- Filtered data ---
+   645→  const filteredUsers = users.filter((u) => {
+   646→    if (!usersSearch) return true;
+   647→    const q = usersSearch.toLowerCase();
+   648→    return u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.phone.includes(q);
+   649→  });
+   650→
+   651→  const filteredPayments = payments.filter((p) => {
+   652→    if (!paymentsFilter || paymentsFilter === 'all') return true;
+   653→    return p.status === paymentsFilter;
+   654→  });
+   655→
+   656→  // --- Render sidebar ---
+   657→  const renderSidebar = () => (
+   658→    <div
+   659→      className={`flex flex-col h-full bg-white border-r border-gray-200 transition-all duration-300 ${
+   660→        sidebarCollapsed ? 'w-16' : 'w-64'
+   661→      }`}
+   662→    >
+   663→      {/* Logo */}
+   664→      <div className="flex items-center gap-2 p-4 border-b border-gray-200">
+   665→        <Image src="/logo.png" alt="MKOPA LOAN" width={36} height={36} className="rounded-lg shrink-0" />
+   666→        {!sidebarCollapsed && (
+   667→          <div className="overflow-hidden">
+   668→            <h1 className="text-lg font-bold text-[#333333] whitespace-nowrap">MKOPA LOAN</h1>
+   669→            <p className="text-xs text-gray-500 whitespace-nowrap">Admin Panel</p>
+   670→          </div>
+   671→        )}
+   672→      </div>
+   673→
+   674→      {/* Navigation */}
+   675→      <ScrollArea className="flex-1">
+   676→        <nav className="flex flex-col gap-1 p-2">
+   677→          {NAV_ITEMS.map((item) => (
+   678→            <button
+   679→              key={item.id}
+   680→              onClick={() => {
+   681→                setActiveSection(item.id);
+   682→                setSidebarOpen(false);
+   683→              }}
+   684→              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+   685→                activeSection === item.id
+   686→                  ? 'bg-[#00A651]/10 text-[#00A651]'
+   687→                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+   688→              }`}
+   689→              title={sidebarCollapsed ? item.label : undefined}
+   690→            >
+   691→              <span className="shrink-0">{item.icon}</span>
+   692→              {!sidebarCollapsed && <span className="whitespace-nowrap">{item.label}</span>}
+   693→            </button>
+   694→          ))}
+   695→        </nav>
+   696→      </ScrollArea>
+   697→
+   698→      {/* Collapse toggle */}
+   699→      <div className="border-t border-gray-200 p-2 hidden lg:block">
+   700→        <button
+   701→          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+   702→          className="flex items-center justify-center w-full px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer"
+   703→        >
+   704→          {sidebarCollapsed ? <ChevronRight className="size-5" /> : <ChevronLeft className="size-5" />}
+   705→          {!sidebarCollapsed && <span className="ml-2 text-sm">Collapse</span>}
+   706→        </button>
+   707→      </div>
+   708→
+   709→      {/* Logout */}
+   710→      <div className="border-t border-gray-200 p-2">
+   711→        <button
+   712→          onClick={handleLogout}
+   713→          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors w-full cursor-pointer"
+   714→        >
+   715→          <LogOut className="size-5 shrink-0" />
+   716→          {!sidebarCollapsed && <span>Logout</span>}
+   717→        </button>
+   718→      </div>
+   719→    </div>
+   720→  );
+   721→
+   722→  // --- Mini Bar Chart Component ---
+   723→  function MiniBarChart({ data, dataKey, label }: { data: MonthlyStat[]; dataKey: 'applications' | 'approved' | 'disbursed'; label: string }) {
+   724→    if (!data.length) return null;
+   725→    const maxVal = Math.max(...data.map((d) => d[dataKey]), 1);
+   726→    return (
+   727→      <div className="space-y-2">
+   728→        <p className="text-xs font-semibold text-gray-500 uppercase">{label}</p>
+   729→        <div className="flex items-end gap-1.5 h-24">
+   730→          {data.map((d, i) => (
+   731→            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+   732→              <div
+   733→                className="w-full rounded-t bg-[#00A651] transition-all duration-500 min-h-[2px]"
+   734→                style={{ height: `${(d[dataKey] / maxVal) * 100}%` }}
+   735→              />
+   736→              <span className="text-[9px] text-gray-400 truncate w-full text-center">{d.month.split(' ')[0]}</span>
+   737→            </div>
+   738→          ))}
+   739→        </div>
+   740→      </div>
+   741→    );
+   742→  }
+   743→
+   744→  // ═══════════════════════════════════════════════════════════════════════
+   745→  // OVERVIEW SECTION
+   746→  // ═══════════════════════════════════════════════════════════════════════
+   747→  const renderOverview = () => (
+   748→    <div className="space-y-6">
+   749→      <div className="flex items-center justify-between">
+   750→        <div>
+   751→          <h2 className="text-2xl font-bold text-[#333333]">Dashboard Overview</h2>
+   752→          <p className="text-gray-500 mt-1">Welcome back, {user?.fullName || 'Admin'}</p>
+   753→        </div>
+   754→        <Button
+   755→          variant="outline"
+   756→          size="sm"
+   757→          onClick={() => fetchStats()}
+   758→          className="text-[#00A651] border-[#00A651]/30 hover:bg-[#00A651]/10 cursor-pointer"
+   759→        >
+   760→          <RefreshCw className="size-3.5 mr-1" />
+   761→          Refresh
+   762→        </Button>
+   763→      </div>
+   764→
+   765→      {/* Stats Grid */}
+   766→      {loadingStats ? (
+   767→        <div className="flex items-center justify-center py-12">
+   768→          <Loader2 className="size-8 animate-spin text-[#00A651]" />
+   769→        </div>
+   770→      ) : stats ? (
+   771→        <>
+   772→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   773→            <Card className="border-l-4 border-l-[#00A651]">
+   774→              <CardContent className="p-5">
+   775→                <div className="flex items-center justify-between">
+   776→                  <div>
+   777→                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total Users</p>
+   778→                    <p className="text-2xl font-bold text-[#333333] mt-1">{stats.totalUsers}</p>
+   779→                  </div>
+   780→                  <div className="flex items-center justify-center size-12 rounded-xl bg-[#00A651]/10">
+   781→                    <Users className="size-6 text-[#00A651]" />
+   782→                  </div>
+   783→                </div>
+   784→              </CardContent>
+   785→            </Card>
+   786→            <Card className="border-l-4 border-l-blue-500">
+   787→              <CardContent className="p-5">
+   788→                <div className="flex items-center justify-between">
+   789→                  <div>
+   790→                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Applications</p>
+   791→                    <p className="text-2xl font-bold text-[#333333] mt-1">{stats.totalApplications}</p>
+   792→                  </div>
+   793→                  <div className="flex items-center justify-center size-12 rounded-xl bg-blue-50">
+   794→                    <FileText className="size-6 text-blue-600" />
+   795→                  </div>
+   796→                </div>
+   797→              </CardContent>
+   798→            </Card>
+   799→            <Card className="border-l-4 border-l-green-500">
+   800→              <CardContent className="p-5">
+   801→                <div className="flex items-center justify-between">
+   802→                  <div>
+   803→                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Approved</p>
+   804→                    <p className="text-2xl font-bold text-[#333333] mt-1">{stats.approvedLoans}</p>
+   805→                  </div>
+   806→                  <div className="flex items-center justify-center size-12 rounded-xl bg-green-50">
+   807→                    <CheckCircle2 className="size-6 text-green-600" />
+   808→                  </div>
+   809→                </div>
+   810→              </CardContent>
+   811→            </Card>
+   812→            <Card className="border-l-4 border-l-yellow-500">
+   813→              <CardContent className="p-5">
+   814→                <div className="flex items-center justify-between">
+   815→                  <div>
+   816→                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total Disbursed</p>
+   817→                    <p className="text-2xl font-bold text-[#333333] mt-1">{formatCurrency(stats.totalDisbursed)}</p>
+   818→                  </div>
+   819→                  <div className="flex items-center justify-center size-12 rounded-xl bg-[#00A651]/10">
+   820→                    <DollarSign className="size-6 text-[#00A651]" />
+   821→                  </div>
+   822→                </div>
+   823→              </CardContent>
+   824→            </Card>
+   825→          </div>
+   826→
+   827→          {/* Secondary stats */}
+   828→          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   829→            <Card>
+   830→              <CardContent className="p-5 flex items-center gap-4">
+   831→                <div className="flex items-center justify-center size-10 rounded-lg bg-yellow-50">
+   832→                  <ShieldCheck className="size-5 text-yellow-600" />
+   833→                </div>
+   834→                <div>
+   835→                  <p className="text-xs text-gray-500">Pending KYC</p>
+   836→                  <p className="text-xl font-bold text-[#333333]">{stats.pendingKYC}</p>
+   837→                </div>
+   838→              </CardContent>
+   839→            </Card>
+   840→            <Card>
+   841→              <CardContent className="p-5 flex items-center gap-4">
+   842→                <div className="flex items-center justify-center size-10 rounded-lg bg-orange-50">
+   843→                  <Clock className="size-5 text-orange-600" />
+   844→                </div>
+   845→                <div>
+   846→                  <p className="text-xs text-gray-500">Pending Review</p>
+   847→                  <p className="text-xl font-bold text-[#333333]">{stats.pendingReview}</p>
+   848→                </div>
+   849→              </CardContent>
+   850→            </Card>
+   851→            <Card>
+   852→              <CardContent className="p-5 flex items-center gap-4">
+   853→                <div className="flex items-center justify-center size-10 rounded-lg bg-red-50">
+   854→                  <XCircle className="size-5 text-red-600" />
+   855→                </div>
+   856→                <div>
+   857→                  <p className="text-xs text-gray-500">Rejected Loans</p>
+   858→                  <p className="text-xl font-bold text-[#333333]">{stats.rejectedLoans}</p>
+   859→                </div>
+   860→              </CardContent>
+   861→            </Card>
+   862→          </div>
+   863→
+   864→          {/* Charts Section */}
+   865→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   866→            <Card>
+   867→              <CardHeader className="pb-2">
+   868→                <CardTitle className="text-base">Monthly Applications</CardTitle>
+   869→              </CardHeader>
+   870→              <CardContent>
+   871→                <MiniBarChart data={monthlyStats} dataKey="applications" label="Applications per Month" />
+   872→              </CardContent>
+   873→            </Card>
+   874→            <Card>
+   875→              <CardHeader className="pb-2">
+   876→                <CardTitle className="text-base">Monthly Disbursements</CardTitle>
+   877→              </CardHeader>
+   878→              <CardContent>
+   879→                <MiniBarChart data={monthlyStats} dataKey="disbursed" label="Amount Disbursed" />
+   880→              </CardContent>
+   881→            </Card>
+   882→          </div>
+   883→
+   884→          {/* Approval Rate */}
+   885→          <Card>
+   886→            <CardHeader className="pb-2">
+   887→              <CardTitle className="text-base">Loan Approval Rate</CardTitle>
+   888→            </CardHeader>
+   889→            <CardContent>
+   890→              <div className="space-y-2">
+   891→                <div className="flex justify-between text-sm">
+   892→                  <span className="text-gray-500">Approval Rate</span>
+   893→                  <span className="font-bold text-[#00A651]">
+   894→                    {stats.totalApplications > 0
+   895→                      ? Math.round((stats.approvedLoans / stats.totalApplications) * 100)
+   896→                      : 0}%
+   897→                  </span>
+   898→                </div>
+   899→                <Progress
+   900→                  value={stats.totalApplications > 0 ? (stats.approvedLoans / stats.totalApplications) * 100 : 0}
+   901→                  className="h-3"
+   902→                />
+   903→                <div className="flex justify-between text-xs text-gray-400">
+   904→                  <span>{stats.approvedLoans} approved</span>
+   905→                  <span>{stats.rejectedLoans} rejected</span>
+   906→                  <span>{stats.totalApplications} total</span>
+   907→                </div>
+   908→              </div>
+   909→            </CardContent>
+   910→          </Card>
+   911→        </>
+   912→      ) : (
+   913→        <Card>
+   914→          <CardContent className="p-6 text-center text-gray-500">
+   915→            <AlertCircle className="size-8 mx-auto mb-2 text-gray-400" />
+   916→            Failed to load dashboard stats
+   917→          </CardContent>
+   918→        </Card>
+   919→      )}
+   920→
+   921→      {/* Recent Activity */}
+   922→      <Card>
+   923→        <CardHeader>
+   924→          <CardTitle className="text-lg">Recent Loan Applications</CardTitle>
+   925→          <CardDescription>Latest applications submitted</CardDescription>
+   926→        </CardHeader>
+   927→        <CardContent>
+   928→          {loadingApplications ? (
+   929→            <div className="flex items-center justify-center py-8">
+   930→              <Loader2 className="size-6 animate-spin text-[#00A651]" />
+   931→            </div>
+   932→          ) : applications.length > 0 ? (
+   933→            <div className="space-y-3">
+   934→              {applications.slice(0, 5).map((app) => (
+   935→                <div
+   936→                  key={app.id}
+   937→                  className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
+   938→                >
+   939→                  <div className="flex items-center gap-3">
+   940→                    <Avatar className="size-9">
+   941→                      <AvatarFallback className="bg-[#00A651] text-white text-xs">
+   942→                        {app.user.fullName.charAt(0).toUpperCase()}
+   943→                      </AvatarFallback>
+   944→                    </Avatar>
+   945→                    <div>
+   946→                      <p className="text-sm font-medium text-[#333333]">{app.user.fullName}</p>
+   947→                      <p className="text-xs text-gray-500">{formatDate(app.createdAt)}</p>
+   948→                    </div>
+   949→                  </div>
+   950→                  <div className="flex items-center gap-3">
+   951→                    <span className="text-sm font-semibold text-[#333333]">
+   952→                      {formatCurrency(app.loanAmount)}
+   953→                    </span>
+   954→                    <Badge className={getStatusColor(app.status)} variant="secondary">
+   955→                      {formatStatus(app.status)}
+   956→                    </Badge>
+   957→                  </div>
+   958→                </div>
+   959→              ))}
+   960→            </div>
+   961→          ) : (
+   962→            <p className="text-sm text-gray-500 text-center py-4">No applications yet</p>
+   963→          )}
+   964→        </CardContent>
+   965→      </Card>
+   966→    </div>
+   967→  );
+   968→
+   969→  // ═══════════════════════════════════════════════════════════════════════
+   970→  // USERS MANAGEMENT SECTION
+   971→  // ═══════════════════════════════════════════════════════════════════════
+   972→  const renderUsers = () => (
+   973→    <div className="space-y-6">
+   974→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   975→        <div>
+   976→          <h2 className="text-2xl font-bold text-[#333333]">Users Management</h2>
+   977→          <p className="text-gray-500 mt-1">{usersPagination.total} total users</p>
+   978→        </div>
+   979→        <div className="relative w-full sm:w-72">
+   980→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+   981→          <Input
+   982→            placeholder="Search by name, email, or phone..."
+   983→            value={usersSearch}
+   984→            onChange={(e) => setUsersSearch(e.target.value)}
+   985→            className="pl-9"
+   986→          />
+   987→        </div>
+   988→      </div>
+   989→
+   990→      <Card>
+   991→        <CardContent className="p-0">
+   992→          {loadingUsers ? (
+   993→            <div className="flex items-center justify-center py-12">
+   994→              <Loader2 className="size-8 animate-spin text-[#00A651]" />
+   995→            </div>
+   996→          ) : (
+   997→            <>
+   998→              <div className="overflow-x-auto">
+   999→                <Table>
+  1000→                  <TableHeader>
+  1001→                    <TableRow>
+  1002→                      <TableHead>User</TableHead>
+  1003→                      <TableHead className="hidden md:table-cell">Phone</TableHead>
+  1004→                      <TableHead>KYC</TableHead>
+  1005→                      <TableHead>Status</TableHead>
+  1006→                      <TableHead className="hidden sm:table-cell">Loans</TableHead>
+  1007→                      <TableHead>Actions</TableHead>
+  1008→                    </TableRow>
+  1009→                  </TableHeader>
+  1010→                  <TableBody>
+  1011→                    {filteredUsers.length === 0 ? (
+  1012→                      <TableRow>
+  1013→                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+  1014→                          No users found
+  1015→                        </TableCell>
+  1016→                      </TableRow>
+  1017→                    ) : (
+  1018→                      filteredUsers.map((u) => (
+  1019→                        <TableRow key={u.id}>
+  1020→                          <TableCell>
+  1021→                            <div className="flex items-center gap-2">
+  1022→                              <Avatar className="size-8">
+  1023→                                <AvatarFallback className="bg-[#00A651] text-white text-xs">
+  1024→                                  {u.fullName.charAt(0).toUpperCase()}
+  1025→                                </AvatarFallback>
+  1026→                              </Avatar>
+  1027→                              <div>
+  1028→                                <p className="font-medium text-sm">{u.fullName}</p>
+  1029→                                <p className="text-xs text-gray-500">{u.email}</p>
+  1030→                              </div>
+  1031→                            </div>
+  1032→                          </TableCell>
+  1033→                          <TableCell className="hidden md:table-cell text-sm text-gray-600">
+  1034→                            {u.phone}
+  1035→                          </TableCell>
+  1036→                          <TableCell>
+  1037→                            <Badge className={getStatusColor(u.kycStatus)} variant="secondary">
+  1038→                              {formatStatus(u.kycStatus)}
+  1039→                            </Badge>
+  1040→                          </TableCell>
+  1041→                          <TableCell>
+  1042→                            <Badge
+  1043→                              className={u.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}
+  1044→                              variant="secondary"
+  1045→                            >
+  1046→                              {u.isActive ? 'Active' : 'Inactive'}
+  1047→                            </Badge>
+  1048→                          </TableCell>
+  1049→                          <TableCell className="hidden sm:table-cell text-sm text-gray-600">
+  1050→                            {u.loanCount}
+  1051→                          </TableCell>
+  1052→                          <TableCell>
+  1053→                            <div className="flex items-center gap-1">
+  1054→                              <Button
+  1055→                                size="sm"
+  1056→                                variant="outline"
+  1057→                                className="h-7 text-xs cursor-pointer"
+  1058→                                onClick={() => handleViewUserDetail(u.id)}
+  1059→                              >
+  1060→                                <Eye className="size-3 mr-0.5" />
+  1061→                                View
+  1062→                              </Button>
+  1063→                              <Button
+  1064→                                size="sm"
+  1065→                                variant={u.isActive ? 'destructive' : 'default'}
+  1066→                                className={`h-7 text-xs cursor-pointer ${
+  1067→                                  u.isActive ? '' : 'bg-[#00A651] hover:bg-[#008f45] text-white'
+  1068→                                }`}
+  1069→                                onClick={() => handleToggleUserActive(u.id, u.isActive)}
+  1070→                              >
+  1071→                                {u.isActive ? (
+  1072→                                  <><UserX className="size-3 mr-0.5" />Deactivate</>
+  1073→                                ) : (
+  1074→                                  <><UserCheck className="size-3 mr-0.5" />Activate</>
+  1075→                                )}
+  1076→                              </Button>
+  1077→                            </div>
+  1078→                          </TableCell>
+  1079→                        </TableRow>
+  1080→                      ))
+  1081→                    )}
+  1082→                  </TableBody>
+  1083→                </Table>
+  1084→              </div>
+  1085→
+  1086→              {/* Pagination */}
+  1087→              {usersPagination.totalPages > 1 && (
+  1088→                <div className="flex items-center justify-between px-4 py-3 border-t">
+  1089→                  <p className="text-sm text-gray-500">
+  1090→                    Page {usersPagination.page} of {usersPagination.totalPages}
+  1091→                  </p>
+  1092→                  <div className="flex gap-2">
+  1093→                    <Button
+  1094→                      variant="outline"
+  1095→                      size="sm"
+  1096→                      disabled={usersPagination.page <= 1}
+  1097→                      onClick={() => fetchUsers(usersPagination.page - 1)}
+  1098→                    >
+  1099→                      Previous
+  1100→                    </Button>
+  1101→                    <Button
+  1102→                      variant="outline"
+  1103→                      size="sm"
+  1104→                      disabled={usersPagination.page >= usersPagination.totalPages}
+  1105→                      onClick={() => fetchUsers(usersPagination.page + 1)}
+  1106→                    >
+  1107→                      Next
+  1108→                    </Button>
+  1109→                  </div>
+  1110→                </div>
+  1111→              )}
+  1112→            </>
+  1113→          )}
+  1114→        </CardContent>
+  1115→      </Card>
+  1116→
+  1117→      {/* User Detail Dialog */}
+  1118→      <Dialog open={userDetailOpen} onOpenChange={setUserDetailOpen}>
+  1119→        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+  1120→          <DialogHeader>
+  1121→            <DialogTitle>User Details</DialogTitle>
+  1122→          </DialogHeader>
+  1123→          {userDetailLoading ? (
+  1124→            <div className="flex items-center justify-center py-12">
+  1125→              <Loader2 className="size-8 animate-spin text-[#00A651]" />
+  1126→            </div>
+  1127→          ) : userDetail ? (
+  1128→            <div className="space-y-6">
+  1129→              {/* User Info */}
+  1130→              <div className="flex items-center gap-4">
+  1131→                <Avatar className="size-14">
+  1132→                  <AvatarFallback className="bg-[#00A651] text-white text-xl">
+  1133→                    {userDetail.fullName.charAt(0).toUpperCase()}
+  1134→                  </AvatarFallback>
+  1135→                </Avatar>
+  1136→                <div>
+  1137→                  <h3 className="text-lg font-bold text-[#333333]">{userDetail.fullName}</h3>
+  1138→                  <p className="text-sm text-gray-500">{userDetail.email}</p>
+  1139→                  <div className="flex items-center gap-2 mt-1">
+  1140→                    <Badge
+  1141→                      className={userDetail.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}
+  1142→                      variant="secondary"
+  1143→                    >
+  1144→                      {userDetail.isActive ? 'Active' : 'Inactive'}
+  1145→                    </Badge>
+  1146→                    <span className="text-xs text-gray-400">Joined {formatDate(userDetail.createdAt)}</span>
+  1147→                  </div>
+  1148→                </div>
+  1149→              </div>
+  1150→
+  1151→              <Separator />
+  1152→
+  1153→              {/* KYC Info */}
+  1154→              <div>
+  1155→                <h4 className="font-semibold text-sm text-gray-700 mb-3">KYC Information</h4>
+  1156→                {userDetail.kyc ? (
+  1157→                  <div className="space-y-2">
+  1158→                    <div className="grid grid-cols-2 gap-3 text-sm">
+  1159→                      <div className="bg-gray-50 rounded-lg p-3">
+  1160→                        <p className="text-xs text-gray-500">Legal Name</p>
+  1161→                        <p className="font-medium">{userDetail.kyc.legalName}</p>
+  1162→                      </div>
+  1163→                      <div className="bg-gray-50 rounded-lg p-3">
+  1164→                        <p className="text-xs text-gray-500">National ID</p>
+  1165→                        <p className="font-medium">{userDetail.kyc.nationalId}</p>
+  1166→                      </div>
+  1167→                      <div className="bg-gray-50 rounded-lg p-3">
+  1168→                        <p className="text-xs text-gray-500">Date of Birth</p>
+  1169→                        <p className="font-medium">{userDetail.kyc.dateOfBirth}</p>
+  1170→                      </div>
+  1171→                      <div className="bg-gray-50 rounded-lg p-3">
+  1172→                        <p className="text-xs text-gray-500">Status</p>
+  1173→                        <Badge className={getStatusColor(userDetail.kyc.status)} variant="secondary">
+  1174→                          {formatStatus(userDetail.kyc.status)}
+  1175→                        </Badge>
+  1176→                      </div>
+  1177→                    </div>
+  1178→                    <div className="bg-gray-50 rounded-lg p-3">
+  1179→                      <p className="text-xs text-gray-500 mb-1">Address</p>
+  1180→                      <p className="text-sm">{userDetail.kyc.residentialAddress}</p>
+  1181→                    </div>
+  1182→                    {/* Download KYC Documents */}
+  1183→                    <div className="flex gap-2">
+  1184→                      <Button
+  1185→                        size="sm"
+  1186→                        variant="outline"
+  1187→                        className="text-[#00A651] border-[#00A651]/30 cursor-pointer"
+  1188→                        onClick={() => handleDownloadKycDocument(userDetail.kyc!.id, 'front', userDetail.kyc!.legalName)}
+  1189→                      >
+  1190→                        <Download className="size-3.5 mr-1" />
+  1191→                        Download ID Front
+  1192→                      </Button>
+  1193→                      <Button
+  1194→                        size="sm"
+  1195→                        variant="outline"
+  1196→                        className="text-[#00A651] border-[#00A651]/30 cursor-pointer"
+  1197→                        onClick={() => handleDownloadKycDocument(userDetail.kyc!.id, 'back', userDetail.kyc!.legalName)}
+  1198→                      >
+  1199→                        <Download className="size-3.5 mr-1" />
+  1200→                        Download ID Back
+  1201→                      </Button>
+  1202→                    </div>
+  1203→                  </div>
+  1204→                ) : (
+  1205→                  <p className="text-sm text-gray-400">No KYC submission</p>
+  1206→                )}
+  1207→              </div>
+  1208→
+  1209→              <Separator />
+  1210→
+  1211→              {/* Loan History */}
+  1212→              <div>
+  1213→                <h4 className="font-semibold text-sm text-gray-700 mb-3">Loan Applications ({userDetail.loanApps.length})</h4>
+  1214→                {userDetail.loanApps.length === 0 ? (
+  1215→                  <p className="text-sm text-gray-400">No loan applications</p>
+  1216→                ) : (
+  1217→                  <div className="space-y-2">
+  1218→                    {userDetail.loanApps.slice(0, 5).map((loan) => (
+  1219→                      <div key={loan.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+  1220→                        <div>
+  1221→                          <p className="text-sm font-medium">{formatCurrency(loan.loanAmount)}</p>
+  1222→                          <p className="text-xs text-gray-500">{formatDate(loan.createdAt)}</p>
+  1223→                        </div>
+  1224→                        <Badge className={getStatusColor(loan.status)} variant="secondary">
+  1225→                          {formatStatus(loan.status)}
+  1226→                        </Badge>
+  1227→                      </div>
+  1228→                    ))}
+  1229→                  </div>
+  1230→                )}
+  1231→              </div>
+  1232→
+  1233→              <Separator />
+  1234→
+  1235→              {/* Activity Log */}
+  1236→              <div>
+  1237→                <h4 className="font-semibold text-sm text-gray-700 mb-3">Recent Activity</h4>
+  1238→                {userDetail.activityLogs.length === 0 ? (
+  1239→                  <p className="text-sm text-gray-400">No activity recorded</p>
+  1240→                ) : (
+  1241→                  <div className="space-y-1.5">
+  1242→                    {userDetail.activityLogs.slice(0, 5).map((log) => (
+  1243→                      <div key={log.id} className="flex items-start gap-2 text-sm">
+  1244→                        <Activity className="size-3.5 mt-1 text-gray-400 shrink-0" />
+  1245→                        <div>
+  1246→                          <p className="text-gray-700">{log.details}</p>
+  1247→                          <p className="text-xs text-gray-400">{formatDateTime(log.createdAt)}</p>
+  1248→                        </div>
+  1249→                      </div>
+  1250→                    ))}
+  1251→                  </div>
+  1252→                )}
+  1253→              </div>
+  1254→            </div>
+  1255→          ) : (
+  1256→            <p className="text-center text-gray-500">User not found</p>
+  1257→          )}
+  1258→        </DialogContent>
+  1259→      </Dialog>
+  1260→    </div>
+  1261→  );
+  1262→
+  1263→  // ═══════════════════════════════════════════════════════════════════════
+  1264→  // LOAN APPLICATIONS SECTION
+  1265→  // ═══════════════════════════════════════════════════════════════════════
+  1266→  const renderApplications = () => (
+  1267→    <div className="space-y-6">
+  1268→      <div>
+  1269→        <h2 className="text-2xl font-bold text-[#333333]">Loan Applications</h2>
+  1270→        <p className="text-gray-500 mt-1">Review and manage loan applications</p>
+  1271→      </div>
+  1272→
+  1273→      <Tabs
+  1274→        value={applicationsFilter}
+  1275→        onValueChange={(v) => {
+  1276→          setApplicationsFilter(v);
+  1277→          setApplicationsPagination({ ...applicationsPagination, page: 1 });
+  1278→        }}
+  1279→      >
+  1280→        <TabsList>
+  1281→          <TabsTrigger value="all">All</TabsTrigger>
+  1282→          <TabsTrigger value="submitted_for_review">Pending Review</TabsTrigger>
+  1283→          <TabsTrigger value="pending_activation">Pending Activation</TabsTrigger>
+  1284→          <TabsTrigger value="approved">Approved</TabsTrigger>
+  1285→          <TabsTrigger value="rejected">Rejected</TabsTrigger>
+  1286→        </TabsList>
+  1287→
+  1288→        <TabsContent value={applicationsFilter} className="mt-4">
+  1289→          <Card>
+  1290→            <CardContent className="p-0">
+  1291→              {loadingApplications ? (
+  1292→                <div className="flex items-center justify-center py-12">
+  1293→                  <Loader2 className="size-8 animate-spin text-[#00A651]" />
+  1294→                </div>
+  1295→              ) : (
+  1296→                <>
+  1297→                  <div className="overflow-x-auto">
+  1298→                    <Table>
+  1299→                      <TableHeader>
+  1300→                        <TableRow>
+  1301→                          <TableHead>Applicant</TableHead>
+  1302→                          <TableHead>Amount</TableHead>
+  1303→                          <TableHead>Fee</TableHead>
+  1304→                          <TableHead>Status</TableHead>
+  1305→                          <TableHead className="hidden sm:table-cell">Date</TableHead>
+  1306→                          <TableHead>Actions</TableHead>
+  1307→                        </TableRow>
+  1308→                      </TableHeader>
+  1309→                      <TableBody>
+  1310→                        {applications.length === 0 ? (
+  1311→                          <TableRow>
+  1312→                            <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+  1313→                              No applications found
+  1314→                            </TableCell>
+  1315→                          </TableRow>
+  1316→                        ) : (
+  1317→                          applications.map((app) => (
+  1318→                            <TableRow key={app.id}>
+  1319→                              <TableCell>
+  1320→                                <div className="flex items-center gap-2">
+  1321→                                  <Avatar className="size-8">
+  1322→                                    <AvatarFallback className="bg-[#00A651] text-white text-xs">
+  1323→                                      {app.user.fullName.charAt(0).toUpperCase()}
+  1324→                                    </AvatarFallback>
+  1325→                                  </Avatar>
+  1326→                                  <div>
+  1327→                                    <p className="text-sm font-medium">{app.user.fullName}</p>
+  1328→                                    <p className="text-xs text-gray-500">{app.user.phone}</p>
+  1329→                                  </div>
+  1330→                                </div>
+  1331→                              </TableCell>
+  1332→                              <TableCell className="font-semibold text-sm">
+  1333→                                {formatCurrency(app.loanAmount)}
+  1334→                              </TableCell>
+  1335→                              <TableCell className="text-sm text-red-500">
+  1336→                                {formatCurrency(app.processingFee)}
+  1337→                              </TableCell>
+  1338→                              <TableCell>
+  1339→                                <Badge className={getStatusColor(app.status)} variant="secondary">
+  1340→                                  {formatStatus(app.status)}
+  1341→                                </Badge>
+  1342→                              </TableCell>
+  1343→                              <TableCell className="hidden sm:table-cell text-sm text-gray-600">
+  1344→                                {formatDate(app.createdAt)}
+  1345→                              </TableCell>
+  1346→                              <TableCell>
+  1347→                                {app.status === 'submitted_for_review' ? (
+  1348→                                  <div className="flex gap-1">
+  1349→                                    <Button
+  1350→                                      size="sm"
+  1351→                                      className="bg-[#00A651] hover:bg-[#008f45] text-white h-8 text-xs cursor-pointer"
+  1352→                                      onClick={() =>
+  1353→                                        setReviewDialog({
+  1354→                                          open: true,
+  1355→                                          applicationId: app.id,
+  1356→                                          action: 'approve',
+  1357→                                          applicantName: app.user.fullName,
+  1358→                                          amount: app.loanAmount,
+  1359→                                        })
+  1360→                                      }
+  1361→                                    >
+  1362→                                      <CheckCircle2 className="size-3.5 mr-1" />
+  1363→                                      Approve
+  1364→                                    </Button>
+  1365→                                    <Button
+  1366→                                      size="sm"
+  1367→                                      variant="destructive"
+  1368→                                      className="h-8 text-xs cursor-pointer"
+  1369→                                      onClick={() =>
+  1370→                                        setReviewDialog({
+  1371→                                          open: true,
+  1372→                                          applicationId: app.id,
+  1373→                                          action: 'reject',
+  1374→                                          applicantName: app.user.fullName,
+  1375→                                          amount: app.loanAmount,
+  1376→                                        })
+  1377→                                      }
+  1378→                                    >
+  1379→                                      <XCircle className="size-3.5 mr-1" />
+  1380→                                      Reject
+  1381→                                    </Button>
+  1382→                                  </div>
+  1383→                                ) : (
+  1384→                                  <Button
+  1385→                                    size="sm"
+  1386→                                    variant="outline"
+  1387→                                    className="h-8 text-xs cursor-pointer"
+  1388→                                    onClick={() => handleViewUserDetail(app.userId)}
+  1389→                                  >
+  1390→                                    <Eye className="size-3 mr-1" />
+  1391→                                    View User
+  1392→                                  </Button>
+  1393→                                )}
+  1394→                              </TableCell>
+  1395→                            </TableRow>
+  1396→                          ))
+  1397→                        )}
+  1398→                      </TableBody>
+  1399→                    </Table>
+  1400→                  </div>
+  1401→
+  1402→                  {/* Pagination */}
+  1403→                  {applicationsPagination.totalPages > 1 && (
+  1404→                    <div className="flex items-center justify-between px-4 py-3 border-t">
+  1405→                      <p className="text-sm text-gray-500">
+  1406→                        Page {applicationsPagination.page} of {applicationsPagination.totalPages}
+  1407→                      </p>
+  1408→                      <div className="flex gap-2">
+  1409→                        <Button
+  1410→                          variant="outline"
+  1411→                          size="sm"
+  1412→                          disabled={applicationsPagination.page <= 1}
+  1413→                          onClick={() =>
+  1414→                            fetchApplications(applicationsPagination.page - 1, applicationsFilter)
+  1415→                          }
+  1416→                        >
+  1417→                          Previous
+  1418→                        </Button>
+  1419→                        <Button
+  1420→                          variant="outline"
+  1421→                          size="sm"
+  1422→                          disabled={applicationsPagination.page >= applicationsPagination.totalPages}
+  1423→                          onClick={() =>
+  1424→                            fetchApplications(applicationsPagination.page + 1, applicationsFilter)
+  1425→                          }
+  1426→                        >
+  1427→                          Next
+  1428→                        </Button>
+  1429→                      </div>
+  1430→                    </div>
+  1431→                  )}
+  1432→                </>
+  1433→              )}
+  1434→            </CardContent>
+  1435→          </Card>
+  1436→        </TabsContent>
+  1437→      </Tabs>
+  1438→
+  1439→      {/* Review Confirmation Dialog */}
+  1440→      <AlertDialog
+  1441→        open={reviewDialog.open}
+  1442→        onOpenChange={(open) => {
+  1443→          if (!open) {
+  1444→            setReviewDialog({
+  1445→              open: false,
+  1446→              applicationId: '',
+  1447→              action: 'approve',
+  1448→              applicantName: '',
+  1449→              amount: 0,
+  1450→            });
+  1451→            setReviewReason('');
+  1452→          }
+  1453→        }}
+  1454→      >
+  1455→        <AlertDialogContent>
+  1456→          <AlertDialogHeader>
+  1457→            <AlertDialogTitle>
+  1458→              {reviewDialog.action === 'approve' ? 'Approve' : 'Reject'} Loan Application
+  1459→            </AlertDialogTitle>
+  1460→            <AlertDialogDescription>
+  1461→              Are you sure you want to {reviewDialog.action} the loan application from{' '}
+  1462→              <strong>{reviewDialog.applicantName}</strong> for{' '}
+  1463→              <strong>{formatCurrency(reviewDialog.amount)}</strong>?
+  1464→            </AlertDialogDescription>
+  1465→          </AlertDialogHeader>
+  1466→          <div className="space-y-2">
+  1467→            <Label htmlFor="review-reason">Reason (optional)</Label>
+  1468→            <Textarea
+  1469→              id="review-reason"
+  1470→              placeholder={`Reason for ${reviewDialog.action}...`}
+  1471→              value={reviewReason}
+  1472→              onChange={(e) => setReviewReason(e.target.value)}
+  1473→            />
+  1474→          </div>
+  1475→          <AlertDialogFooter>
+  1476→            <AlertDialogCancel disabled={reviewLoading}>Cancel</AlertDialogCancel>
+  1477→            <AlertDialogAction
+  1478→              onClick={handleReviewApplication}
+  1479→              disabled={reviewLoading}
+  1480→              className={
+  1481→                reviewDialog.action === 'approve'
+  1482→                  ? 'bg-[#00A651] hover:bg-[#008f45] text-white'
+  1483→                  : 'bg-red-600 hover:bg-red-700 text-white'
+  1484→              }
+  1485→            >
+  1486→              {reviewLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+  1487→              {reviewDialog.action === 'approve' ? 'Approve' : 'Reject'}
+  1488→            </AlertDialogAction>
+  1489→          </AlertDialogFooter>
+  1490→        </AlertDialogContent>
+  1491→      </AlertDialog>
+  1492→    </div>
+  1493→  );
+  1494→
+  1495→  // ═══════════════════════════════════════════════════════════════════════
+  1496→  // KYC VERIFICATION SECTION (with document download)
+  1497→  // ═══════════════════════════════════════════════════════════════════════
+  1498→  const renderKyc = () => (
+  1499→    <div className="space-y-6">
+  1500→      <div>
+  1501→        <h2 className="text-2xl font-bold text-[#333333]">KYC Verification</h2>
+  1502→        <p className="text-gray-500 mt-1">Review and verify user identity documents</p>
+  1503→      </div>
+  1504→
+  1505→      <Card>
+  1506→        <CardContent className="p-0">
+  1507→          {loadingKyc ? (
+  1508→            <div className="flex items-center justify-center py-12">
+  1509→              <Loader2 className="size-8 animate-spin text-[#00A651]" />
+  1510→            </div>
+  1511→          ) : kycRecords.length === 0 ? (
+  1512→            <div className="text-center py-12 text-gray-500">
+  1513→              <ShieldCheck className="size-12 mx-auto mb-3 text-gray-300" />
+  1514→              <p>No KYC submissions found</p>
+  1515→            </div>
+  1516→          ) : (
+  1517→            <div className="overflow-x-auto">
+  1518→              <Table>
+  1519→                <TableHeader>
+  1520→                  <TableRow>
+  1521→                    <TableHead>Name</TableHead>
+  1522→                    <TableHead>National ID</TableHead>
+  1523→                    <TableHead className="hidden md:table-cell">DOB</TableHead>
+  1524→                    <TableHead className="hidden md:table-cell">Submitted</TableHead>
+  1525→                    <TableHead>Status</TableHead>
+  1526→                    <TableHead>Actions</TableHead>
+  1527→                  </TableRow>
+  1528→                </TableHeader>
+  1529→                <TableBody>
+  1530→                  {kycRecords.map((kyc) => (
+  1531→                    <TableRow key={kyc.id}>
+  1532→                      <TableCell>
+  1533→                        <div className="flex items-center gap-2">
+  1534→                          <Avatar className="size-8">
+  1535→                            <AvatarFallback className="bg-[#00A651] text-white text-xs">
+  1536→                              {kyc.legalName.charAt(0).toUpperCase()}
+  1537→                            </AvatarFallback>
+  1538→                          </Avatar>
+  1539→                          <div>
+  1540→                            <p className="text-sm font-medium">{kyc.legalName}</p>
+  1541→                            <p className="text-xs text-gray-500">{kyc.user.email}</p>
+  1542→                          </div>
+  1543→                        </div>
+  1544→                      </TableCell>
+  1545→                      <TableCell className="text-sm text-gray-600">{kyc.nationalId}</TableCell>
+  1546→                      <TableCell className="hidden md:table-cell text-sm text-gray-600">{kyc.dateOfBirth}</TableCell>
+  1547→                      <TableCell className="hidden md:table-cell text-sm text-gray-600">
+  1548→                        {formatDate(kyc.createdAt)}
+  1549→                      </TableCell>
+  1550→                      <TableCell>
+  1551→                        <Badge className={getStatusColor(kyc.status)} variant="secondary">
+  1552→                          {formatStatus(kyc.status)}
+  1553→                        </Badge>
+  1554→                      </TableCell>
+  1555→                      <TableCell>
+  1556→                        <div className="flex items-center gap-1">
+  1557→                          <Button
+  1558→                            size="sm"
+  1559→                            variant="outline"
+  1560→                            className="h-7 text-xs cursor-pointer"
+  1561→                            onClick={() => setKycDetailDialog({ open: true, kyc })}
+  1562→                          >
+  1563→                            <Eye className="size-3 mr-0.5" />
+  1564→                            View
+  1565→                          </Button>
+  1566→                          {kyc.status === 'pending' && (
+  1567→                            <>
+  1568→                              <Button
+  1569→                                size="sm"
+  1570→                                className="bg-[#00A651] hover:bg-[#008f45] text-white h-7 text-xs cursor-pointer"
+  1571→                                onClick={() =>
+  1572→                                  setKycDialog({ open: true, userId: kyc.userId, action: 'verify', name: kyc.legalName })
+  1573→                                }
+  1574→                              >
+  1575→                                <CheckCircle2 className="size-3 mr-0.5" />
+  1576→                                Verify
+  1577→                              </Button>
+  1578→                              <Button
+  1579→                                size="sm"
+  1580→                                variant="destructive"
+  1581→                                className="h-7 text-xs cursor-pointer"
+  1582→                                onClick={() =>
+  1583→                                  setKycDialog({ open: true, userId: kyc.userId, action: 'reject', name: kyc.legalName })
+  1584→                                }
+  1585→                              >
+  1586→                                <XCircle className="size-3 mr-0.5" />
+  1587→                              </Button>
+  1588→                            </>
+  1589→                          )}
+  1590→                        </div>
+  1591→                      </TableCell>
+  1592→                    </TableRow>
+  1593→                  ))}
+  1594→                </TableBody>
+  1595→              </Table>
+  1596→            </div>
+  1597→          )}
+  1598→        </CardContent>
+  1599→      </Card>
+  1600→
+  1601→      {/* KYC Detail Dialog with Document Download */}
+  1602→      <Dialog
+  1603→        open={kycDetailDialog.open}
+  1604→        onOpenChange={(open) => setKycDetailDialog({ open, kyc: null })}
+  1605→      >
+  1606→        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+  1607→          <DialogHeader>
+  1608→            <DialogTitle>KYC Document Details</DialogTitle>
+  1609→            <DialogDescription>
+  1610→              Review identity documents for {kycDetailDialog.kyc?.legalName}
+  1611→            </DialogDescription>
+  1612→          </DialogHeader>
+  1613→          {kycDetailDialog.kyc && (
+  1614→            <div className="space-y-5">
+  1615→              {/* Personal Info */}
+  1616→              <div className="grid grid-cols-2 gap-3">
+  1617→                <div className="bg-gray-50 rounded-lg p-3">
+  1618→                  <p className="text-xs text-gray-500">Legal Name</p>
+  1619→                  <p className="font-medium text-sm">{kycDetailDialog.kyc.legalName}</p>
+  1620→                </div>
+  1621→                <div className="bg-gray-50 rounded-lg p-3">
+  1622→                  <p className="text-xs text-gray-500">National ID</p>
+  1623→                  <p className="font-medium text-sm">{kycDetailDialog.kyc.nationalId}</p>
+  1624→                </div>
+  1625→                <div className="bg-gray-50 rounded-lg p-3">
+  1626→                  <p className="text-xs text-gray-500">Date of Birth</p>
+  1627→                  <p className="font-medium text-sm">{kycDetailDialog.kyc.dateOfBirth}</p>
+  1628→                </div>
+  1629→                <div className="bg-gray-50 rounded-lg p-3">
+  1630→                  <p className="text-xs text-gray-500">Status</p>
+  1631→                  <Badge className={getStatusColor(kycDetailDialog.kyc.status)} variant="secondary">
+  1632→                    {formatStatus(kycDetailDialog.kyc.status)}
+  1633→                  </Badge>
+  1634→                </div>
+  1635→              </div>
+  1636→              <div className="bg-gray-50 rounded-lg p-3">
+  1637→                <p className="text-xs text-gray-500">Residential Address</p>
+  1638→                <p className="font-medium text-sm">{kycDetailDialog.kyc.residentialAddress}</p>
+  1639→              </div>
+  1640→
+  1641→              <Separator />
+  1642→
+  1643→              {/* ID Front Image */}
+  1644→              <div className="space-y-2">
+  1645→                <div className="flex items-center justify-between">
+  1646→                  <Label className="text-sm font-semibold flex items-center gap-1">
+  1647→                    <ImageIcon className="size-4 text-[#00A651]" />
+  1648→                    ID Front Image
+  1649→                  </Label>
+  1650→                  <Button
+  1651→                    size="sm"
+  1652→                    variant="outline"
+  1653→                    className="text-[#00A651] border-[#00A651]/30 h-7 text-xs cursor-pointer"
+  1654→                    onClick={() =>
+  1655→                      handleDownloadKycDocument(
+  1656→                        kycDetailDialog.kyc!.id,
+  1657→                        'front',
+  1658→                        kycDetailDialog.kyc!.legalName
+  1659→                      )
+  1660→                    }
+  1661→                  >
+  1662→                    <Download className="size-3 mr-1" />
+  1663→                    Download
+  1664→                  </Button>
+  1665→                </div>
+  1666→                <div
+  1667→                  className="rounded-lg border overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+  1668→                  onClick={() =>
+  1669→                    setKycImageDialog({
+  1670→                      open: true,
+  1671→                      imageUrl: kycDetailDialog.kyc!.idFrontImage,
+  1672→                      label: 'ID Front',
+  1673→                      kycId: kycDetailDialog.kyc!.id,
+  1674→                      side: 'front',
+  1675→                    })
+  1676→                  }
+  1677→                >
+  1678→                  <img
+  1679→                    src={kycDetailDialog.kyc.idFrontImage}
+  1680→                    alt="ID Front"
+  1681→                    className="w-full max-h-48 object-cover"
+  1682→                  />
+  1683→                </div>
+  1684→              </div>
+  1685→
+  1686→              {/* ID Back Image */}
+  1687→              <div className="space-y-2">
+  1688→                <div className="flex items-center justify-between">
+  1689→                  <Label className="text-sm font-semibold flex items-center gap-1">
+  1690→                    <ImageIcon className="size-4 text-[#00A651]" />
+  1691→                    ID Back Image
+  1692→                  </Label>
+  1693→                  <Button
+  1694→                    size="sm"
+  1695→                    variant="outline"
+  1696→                    className="text-[#00A651] border-[#00A651]/30 h-7 text-xs cursor-pointer"
+  1697→                    onClick={() =>
+  1698→                      handleDownloadKycDocument(
+  1699→                        kycDetailDialog.kyc!.id,
+  1700→                        'back',
+  1701→                        kycDetailDialog.kyc!.legalName
+  1702→                      )
+  1703→                    }
+  1704→                  >
+  1705→                    <Download className="size-3 mr-1" />
+  1706→                    Download
+  1707→                  </Button>
+  1708→                </div>
+  1709→                <div
+  1710→                  className="rounded-lg border overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+  1711→                  onClick={() =>
+  1712→                    setKycImageDialog({
+  1713→                      open: true,
+  1714→                      imageUrl: kycDetailDialog.kyc!.idBackImage,
+  1715→                      label: 'ID Back',
+  1716→                      kycId: kycDetailDialog.kyc!.id,
+  1717→                      side: 'back',
+  1718→                    })
+  1719→                  }
+  1720→                >
+  1721→                  <img
+  1722→                    src={kycDetailDialog.kyc.idBackImage}
+  1723→                    alt="ID Back"
+  1724→                    className="w-full max-h-48 object-cover"
+  1725→                  />
+  1726→                </div>
+  1727→              </div>
+  1728→
+  1729→              {/* Actions */}
+  1730→              {kycDetailDialog.kyc.status === 'pending' && (
+  1731→                <div className="flex gap-2 pt-2">
+  1732→                  <Button
+  1733→                    className="flex-1 bg-[#00A651] hover:bg-[#008f45] text-white cursor-pointer"
+  1734→                    onClick={() => {
+  1735→                      setKycDetailDialog({ open: false, kyc: null });
+  1736→                      setKycDialog({
+  1737→                        open: true,
+  1738→                        userId: kycDetailDialog.kyc!.userId,
+  1739→                        action: 'verify',
+  1740→                        name: kycDetailDialog.kyc!.legalName,
+  1741→                      });
+  1742→                    }}
+  1743→                  >
+  1744→                    <CheckCircle2 className="size-4 mr-1" />
+  1745→                    Approve & Verify
+  1746→                  </Button>
+  1747→                  <Button
+  1748→                    variant="destructive"
+  1749→                    className="flex-1 cursor-pointer"
+  1750→                    onClick={() => {
+  1751→                      setKycDetailDialog({ open: false, kyc: null });
+  1752→                      setKycDialog({
+  1753→                        open: true,
+  1754→                        userId: kycDetailDialog.kyc!.userId,
+  1755→                        action: 'reject',
+  1756→                        name: kycDetailDialog.kyc!.legalName,
+  1757→                      });
+  1758→                    }}
+  1759→                  >
+  1760→                    <XCircle className="size-4 mr-1" />
+  1761→                    Reject
+  1762→                  </Button>
+  1763→                </div>
+  1764→              )}
+  1765→            </div>
+  1766→          )}
+  1767→        </DialogContent>
+  1768→      </Dialog>
+  1769→
+  1770→      {/* KYC Image Preview Dialog */}
+  1771→      <Dialog
+  1772→        open={kycImageDialog.open}
+  1773→        onOpenChange={(open) =>
+  1774→          setKycImageDialog({ open, imageUrl: '', label: '', kycId: '', side: 'front' })
+  1775→        }
+  1776→      >
+  1777→        <DialogContent className="max-w-3xl">
+  1778→          <DialogHeader>
+  1779→            <DialogTitle>{kycImageDialog.label}</DialogTitle>
+  1780→          </DialogHeader>
+  1781→          <div className="space-y-3">
+  1782→            <div className="rounded-lg border overflow-hidden bg-gray-50">
+  1783→              <img
+  1784→                src={kycImageDialog.imageUrl}
+  1785→                alt={kycImageDialog.label}
+  1786→                className="w-full max-h-[60vh] object-contain"
+  1787→              />
+  1788→            </div>
+  1789→            <Button
+  1790→              className="w-full bg-[#00A651] hover:bg-[#008f45] text-white cursor-pointer"
+  1791→              onClick={() =>
+  1792→                handleDownloadKycDocument(
+  1793→                  kycImageDialog.kycId,
+  1794→                  kycImageDialog.side,
+  1795→                  'document'
+  1796→                )
+  1797→              }
+  1798→            >
+  1799→              <Download className="size-4 mr-2" />
+  1800→              Download {kycImageDialog.label}
+  1801→            </Button>
+  1802→          </div>
+  1803→        </DialogContent>
+  1804→      </Dialog>
+  1805→
+  1806→      {/* KYC Verify/Reject Confirmation */}
+  1807→      <AlertDialog
+  1808→        open={kycDialog.open}
+  1809→        onOpenChange={(open) => {
+  1810→          if (!open) {
+  1811→            setKycDialog({ open: false, userId: '', action: 'verify', name: '' });
+  1812→            setKycReason('');
+  1813→          }
+  1814→        }}
+  1815→      >
+  1816→        <AlertDialogContent>
+  1817→          <AlertDialogHeader>
+  1818→            <AlertDialogTitle>
+  1819→              {kycDialog.action === 'verify' ? 'Verify' : 'Reject'} KYC
+  1820→            </AlertDialogTitle>
+  1821→            <AlertDialogDescription>
+  1822→              Are you sure you want to {kycDialog.action === 'verify' ? 'approve' : 'reject'} the KYC
+  1823→              verification for <strong>{kycDialog.name}</strong>?
+  1824→            </AlertDialogDescription>
+  1825→          </AlertDialogHeader>
+  1826→          <div className="space-y-2">
+  1827→            <Label htmlFor="kyc-reason">Reason (optional)</Label>
+  1828→            <Textarea
+  1829→              id="kyc-reason"
+  1830→              placeholder={`Reason for ${kycDialog.action}...`}
+  1831→              value={kycReason}
+  1832→              onChange={(e) => setKycReason(e.target.value)}
+  1833→            />
+  1834→          </div>
+  1835→          <AlertDialogFooter>
+  1836→            <AlertDialogCancel disabled={kycLoading}>Cancel</AlertDialogCancel>
+  1837→            <AlertDialogAction
+  1838→              onClick={handleVerifyKyc}
+  1839→              disabled={kycLoading}
+  1840→              className={
+  1841→                kycDialog.action === 'verify'
+  1842→                  ? 'bg-[#00A651] hover:bg-[#008f45] text-white'
+  1843→                  : 'bg-red-600 hover:bg-red-700 text-white'
+  1844→              }
+  1845→            >
+  1846→              {kycLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+  1847→              {kycDialog.action === 'verify' ? 'Verify' : 'Reject'}
+  1848→            </AlertDialogAction>
+  1849→          </AlertDialogFooter>
+  1850→        </AlertDialogContent>
+  1851→      </AlertDialog>
+  1852→    </div>
+  1853→  );
+  1854→
+  1855→  // ═══════════════════════════════════════════════════════════════════════
+  1856→  // PAYMENTS SECTION
+  1857→  // ═══════════════════════════════════════════════════════════════════════
+  1858→  const renderPayments = () => (
+  1859→    <div className="space-y-6">
+  1860→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+  1861→        <div>
+  1862→          <h2 className="text-2xl font-bold text-[#333333]">Payment Records</h2>
+  1863→          <p className="text-gray-500 mt-1">Track all STK Push payments and transactions</p>
+  1864→        </div>
+  1865→        <Select value={paymentsFilter} onValueChange={setPaymentsFilter}>
+  1866→          <SelectTrigger className="w-40">
+  1867→            <SelectValue placeholder="Filter" />
+  1868→          </SelectTrigger>
+  1869→          <SelectContent>
+  1870→            <SelectItem value="all">All Status</SelectItem>
+  1871→            <SelectItem value="completed">Completed</SelectItem>
+  1872→            <SelectItem value="pending">Pending</SelectItem>
+  1873→            <SelectItem value="failed">Failed</SelectItem>
+  1874→          </SelectContent>
+  1875→        </Select>
+  1876→      </div>
+  1877→
+  1878→      <Card>
+  1879→        <CardContent className="p-0">
+  1880→          {loadingPayments ? (
+  1881→            <div className="flex items-center justify-center py-12">
+  1882→              <Loader2 className="size-8 animate-spin text-[#00A651]" />
+  1883→            </div>
+  1884→          ) : filteredPayments.length === 0 ? (
+  1885→            <div className="text-center py-12 text-gray-500">
+  1886→              <CreditCard className="size-12 mx-auto mb-3 text-gray-300" />
+  1887→              <p>No payment records found</p>
+  1888→            </div>
+  1889→          ) : (
+  1890→            <div className="overflow-x-auto">
+  1891→              <Table>
+  1892→                <TableHeader>
+  1893→                  <TableRow>
+  1894→                    <TableHead>User</TableHead>
+  1895→                    <TableHead>Transaction ID</TableHead>
+  1896→                    <TableHead>Phone</TableHead>
+  1897→                    <TableHead>Amount</TableHead>
+  1898→                    <TableHead>Type</TableHead>
+  1899→                    <TableHead>Status</TableHead>
+  1900→                    <TableHead className="hidden md:table-cell">Date</TableHead>
+  1901→                  </TableRow>
+  1902→                </TableHeader>
+  1903→                <TableBody>
+  1904→                  {filteredPayments.map((p) => (
+  1905→                    <TableRow key={p.id}>
+  1906→                      <TableCell>
+  1907→                        <div className="flex items-center gap-2">
+  1908→                          <Avatar className="size-7">
+  1909→                            <AvatarFallback className="bg-[#00A651] text-white text-[10px]">
+  1910→                              {p.user.fullName.charAt(0)}
+  1911→                            </AvatarFallback>
+  1912→                          </Avatar>
+  1913→                          <span className="text-sm font-medium">{p.user.fullName}</span>
+  1914→                        </div>
+  1915→                      </TableCell>
+  1916→                      <TableCell className="text-xs font-mono text-gray-600">{p.transactionId}</TableCell>
+  1917→                      <TableCell className="text-sm text-gray-600">{p.phoneNumber}</TableCell>
+  1918→                      <TableCell className="font-semibold text-sm">{formatCurrency(p.amount)}</TableCell>
+  1919→                      <TableCell>
+  1920→                        <Badge variant="secondary" className="bg-blue-50 text-blue-700">
+  1921→                          {p.type}
+  1922→                        </Badge>
+  1923→                      </TableCell>
+  1924→                      <TableCell>
+  1925→                        <Badge className={getStatusColor(p.status)} variant="secondary">
+  1926→                          {formatStatus(p.status)}
+  1927→                        </Badge>
+  1928→                      </TableCell>
+  1929→                      <TableCell className="hidden md:table-cell text-sm text-gray-600">
+  1930→                        {formatDate(p.createdAt)}
+  1931→                      </TableCell>
+  1932→                    </TableRow>
+  1933→                  ))}
+  1934→                </TableBody>
+  1935→              </Table>
+  1936→            </div>
+  1937→          )}
+  1938→        </CardContent>
+  1939→      </Card>
+  1940→    </div>
+  1941→  );
+  1942→
+  1943→  // ═══════════════════════════════════════════════════════════════════════
+  1944→  // LOAN PRODUCTS SECTION
+  1945→  // ═══════════════════════════════════════════════════════════════════════
+  1946→  const renderProducts = () => (
+  1947→    <div className="space-y-6">
+  1948→      <div>
+  1949→        <h2 className="text-2xl font-bold text-[#333333]">Loan Products</h2>
+  1950→        <p className="text-gray-500 mt-1">Manage available loan products and pricing</p>
+  1951→      </div>
+  1952→
+  1953→      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  1954→        {loanProducts.map((product) => (
+  1955→          <Card key={product.amount} className="border-l-4 border-l-[#00A651]">
+  1956→            <CardContent className="p-5">
+  1957→              <div className="space-y-3">
+  1958→                <div className="flex items-center justify-between">
+  1959→                  <h3 className="text-lg font-bold text-[#333333]">
+  1960→                    {formatCurrency(product.amount)}
+  1961→                  </h3>
+  1962→                  <Badge className="bg-[#00A651]/10 text-[#00A651]">Active</Badge>
+  1963→                </div>
+  1964→                <Separator />
+  1965→                <div className="space-y-1.5 text-sm">
+  1966→                  <div className="flex justify-between">
+  1967→                    <span className="text-gray-500">Processing Fee</span>
+  1968→                    <span className="font-semibold text-red-500">{formatCurrency(product.processingFee)}</span>
+  1969→                  </div>
+  1970→                  <div className="flex justify-between">
+  1971→                    <span className="text-gray-500">Amount Received</span>
+  1972→                    <span className="font-semibold text-[#00A651]">
+  1973→                      {formatCurrency(product.amount - product.processingFee)}
+  1974→                    </span>
+  1975→                  </div>
+  1976→                  <div className="flex justify-between">
+  1977→                    <span className="text-gray-500">Interest (15%)</span>
+  1978→                    <span className="font-semibold">{formatCurrency(product.amount * 0.15)}</span>
+  1979→                  </div>
+  1980→                  <div className="flex justify-between">
+  1981→                    <span className="text-gray-500">Total Repayment</span>
+  1982→                    <span className="font-bold">{formatCurrency(product.amount * 1.15)}</span>
+  1983→                  </div>
+  1984→                  <div className="flex justify-between">
+  1985→                    <span className="text-gray-500">Fee Ratio</span>
+  1986→                    <span className="font-semibold">{((product.processingFee / product.amount) * 100).toFixed(1)}%</span>
+  1987→                  </div>
+  1988→                </div>
+  1989→              </div>
+  1990→            </CardContent>
+  1991→          </Card>
+  1992→        ))}
+  1993→      </div>
+  1994→    </div>
+  1995→  );
+  1996→
+  1997→  // ═══════════════════════════════════════════════════════════════════════
+  1998→  // ACTIVITY LOGS SECTION
+  1999→  // ═══════════════════════════════════════════════════════════════════════
+  2000→  const renderActivity = () => (
+
+[showing lines 1-2000 of 2417; use offset=2001 with limit to continue reading]

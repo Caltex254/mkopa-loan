@@ -1,0 +1,807 @@
+     1→'use client';
+     2→
+     3→/* Loan Application Component with Custom Amount Editor + STK Push Payment */
+     4→import { useState, useMemo, useEffect, useCallback } from 'react';
+     5→import { useAppStore } from '@/components/store';
+     6→import {
+     7→  LOAN_PRODUCTS,
+     8→  calculateLoan,
+     9→  calculateProcessingFee,
+    10→  formatCurrency,
+    11→  ACTIVATION_FEE,
+    12→  MIN_LOAN_AMOUNT,
+    13→  MAX_LOAN_AMOUNT,
+    14→} from '@/lib/loans';
+    15→import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+    16→import { Input } from '@/components/ui/input';
+    17→import { Label } from '@/components/ui/label';
+    18→import { Button } from '@/components/ui/button';
+    19→import { Badge } from '@/components/ui/badge';
+    20→import { Separator } from '@/components/ui/separator';
+    21→import { Slider } from '@/components/ui/slider';
+    22→import {
+    23→  Select,
+    24→  SelectContent,
+    25→  SelectItem,
+    26→  SelectTrigger,
+    27→  SelectValue,
+    28→} from '@/components/ui/select';
+    29→import {
+    30→  Banknote,
+    31→  ChevronRight,
+    32→  ChevronLeft,
+    33→  FileText,
+    34→  CheckCircle2,
+    35→  Phone,
+    36→  Shield,
+    37→  AlertCircle,
+    38→  Loader2,
+    39→  ArrowRight,
+    40→  Info,
+    41→  Pencil,
+    42→  Sparkles,
+    43→  Smartphone,
+    44→  Signal,
+    45→} from 'lucide-react';
+    46→
+    47→const INTEREST_RATE = 0.15;
+    48→
+    49→function getRepaymentDate(): string {
+    50→  const date = new Date();
+    51→  date.setDate(date.getDate() + 30);
+    52→  return date.toLocaleDateString('en-KE', { year: 'numeric', month: 'long', day: 'numeric' });
+    53→}
+    54→
+    55→type GatewayType = 'safaricom' | 'airtel' | 'auto';
+    56→
+    57→export default function LoanApplication() {
+    58→  const { setView, user, loanApplication, setLoanApplication } = useAppStore();
+    59→  const [step, setStep] = useState(1);
+    60→  const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
+    61→  const [isCustomMode, setIsCustomMode] = useState(false);
+    62→  const [customAmount, setCustomAmount] = useState<string>('5000');
+    63→  const [customSliderValue, setCustomSliderValue] = useState([5000]);
+    64→  const [loading, setLoading] = useState(false);
+    65→  const [error, setError] = useState('');
+    66→  const [phoneNumber, setPhoneNumber] = useState(user?.phone || '');
+    67→  const [payingFee, setPayingFee] = useState(false);
+    68→  const [feeError, setFeeError] = useState('');
+    69→  const [gateway, setGateway] = useState<GatewayType>('auto');
+    70→  const [paymentReference, setPaymentReference] = useState<string | null>(null);
+    71→  const [paymentStatus, setPaymentStatus] = useState<string>('idle'); // idle, processing, polling, completed, failed
+    72→  const [pollCount, setPollCount] = useState(0);
+    73→
+    74→  // Calculate loan details based on selected or custom amount
+    75→  const effectiveAmount = isCustomMode
+    76→    ? Math.max(MIN_LOAN_AMOUNT, Math.min(MAX_LOAN_AMOUNT, parseInt(customAmount) || MIN_LOAN_AMOUNT))
+    77→    : selectedAmount;
+    78→
+    79→  const loanDetails = useMemo(() => {
+    80→    if (!effectiveAmount || effectiveAmount < MIN_LOAN_AMOUNT) return null;
+    81→    return calculateLoan(effectiveAmount);
+    82→  }, [effectiveAmount]);
+    83→
+    84→  const customProcessingFee = useMemo(() => {
+    85→    if (!isCustomMode) return 0;
+    86→    const amt = parseInt(customAmount) || MIN_LOAN_AMOUNT;
+    87→    if (amt < MIN_LOAN_AMOUNT) return 0;
+    88→    return calculateProcessingFee(amt);
+    89→  }, [isCustomMode, customAmount]);
+    90→
+    91→  const handleCustomAmountChange = (value: string) => {
+    92→    const num = parseInt(value.replace(/[^0-9]/g, ''));
+    93→    if (!isNaN(num)) {
+    94→      if (num > MAX_LOAN_AMOUNT) return;
+    95→      setCustomAmount(String(num));
+    96→      setCustomSliderValue([num]);
+    97→    } else if (value === '') {
+    98→      setCustomAmount('');
+    99→      setCustomSliderValue([MIN_LOAN_AMOUNT]);
+   100→    }
+   101→  };
+   102→
+   103→  const handleCustomSliderChange = (val: number[]) => {
+   104→    const v = val[0];
+   105→    setCustomSliderValue(val);
+   106→    setCustomAmount(String(v));
+   107→  };
+   108→
+   109→  const handleStep1Continue = async () => {
+   110→    const amountToUse = isCustomMode
+   111→      ? Math.max(MIN_LOAN_AMOUNT, parseInt(customAmount) || MIN_LOAN_AMOUNT)
+   112→      : selectedAmount;
+   113→
+   114→    if (!amountToUse || amountToUse < MIN_LOAN_AMOUNT) {
+   115→      setError('Please select or enter a loan amount (minimum KES 5,000)');
+   116→      return;
+   117→    }
+   118→
+   119→    setLoading(true);
+   120→    setError('');
+   121→
+   122→    try {
+   123→      const res = await fetch('/api/loans/apply', {
+   124→        method: 'POST',
+   125→        headers: { 'Content-Type': 'application/json' },
+   126→        body: JSON.stringify({ loanAmount: amountToUse }),
+   127→      });
+   128→
+   129→      const data = await res.json();
+   130→
+   131→      if (!res.ok) {
+   132→        setError(data.error || 'Failed to submit loan application');
+   133→        return;
+   134→      }
+   135→
+   136→      setLoanApplication({
+   137→        id: data.application.id,
+   138→        loanAmount: data.application.loanAmount,
+   139→        processingFee: data.application.processingFee,
+   140→        amountReceived: data.application.amountReceived,
+   141→        totalRepayment: data.application.totalRepayment,
+   142→        repaymentDate: data.application.repaymentDate,
+   143→        status: data.application.status,
+   144→        activationPaid: data.application.activationPaid,
+   145→        activationRef: data.application.activationRef || undefined,
+   146→        paymentRef: data.application.paymentRef || undefined,
+   147→        createdAt: data.application.createdAt,
+   148→      });
+   149→
+   150→      setStep(2);
+   151→    } catch {
+   152→      setError('Network error. Please try again.');
+   153→    } finally {
+   154→      setLoading(false);
+   155→    }
+   156→  };
+   157→
+   158→  // Poll for payment status
+   159→  const pollPaymentStatus = useCallback(async (ref: string) => {
+   160→    try {
+   161→      const res = await fetch(`/api/payments/status?reference=${encodeURIComponent(ref)}`);
+   162→      if (res.ok) {
+   163→        const data = await res.json();
+   164→        if (data.payment) {
+   165→          setPaymentStatus(data.payment.status);
+   166→          if (data.payment.status === 'completed') {
+   167→            // Update loan application in store
+   168→            if (data.application && loanApplication) {
+   169→              setLoanApplication({
+   170→                ...loanApplication,
+   171→                status: data.application.status,
+   172→                activationPaid: data.application.activationPaid,
+   173→                activationRef: data.application.activationRef,
+   174→                paymentRef: data.application.paymentRef,
+   175→              });
+   176→            }
+   177→            setTimeout(() => setView('loan-success'), 1500);
+   178→            return true;
+   179→          } else if (data.payment.status === 'failed') {
+   180→            setFeeError('Payment failed. Please try again.');
+   181→            return true;
+   182→          }
+   183→        }
+   184→      }
+   185→      return false;
+   186→    } catch {
+   187→      return false;
+   188→    }
+   189→  }, [loanApplication, setLoanApplication, setView]);
+   190→
+   191→  useEffect(() => {
+   192→    if (paymentStatus !== 'polling' || !paymentReference) return;
+   193→    if (pollCount >= 30) {
+   194→      setPaymentStatus('idle');
+   195→      setFeeError('Payment verification timed out. Please check your phone and try again or contact support.');
+   196→      return;
+   197→    }
+   198→
+   199→    const timer = setTimeout(async () => {
+   200→      const done = await pollPaymentStatus(paymentReference);
+   201→      if (!done) {
+   202→        setPollCount(prev => prev + 1);
+   203→      }
+   204→    }, 3000);
+   205→
+   206→    return () => clearTimeout(timer);
+   207→  }, [paymentStatus, paymentReference, pollCount, pollPaymentStatus]);
+   208→
+   209→  const handlePayActivation = async () => {
+   210→    if (!phoneNumber || phoneNumber.length < 10) {
+   211→      setFeeError('Please enter a valid phone number (e.g., 0712345678 or 254712345678)');
+   212→      return;
+   213→    }
+   214→    if (!loanApplication) {
+   215→      setFeeError('Application not found');
+   216→      return;
+   217→    }
+   218→
+   219→    setPayingFee(true);
+   220→    setFeeError('');
+   221→    setPaymentStatus('processing');
+   222→
+   223→    try {
+   224→      const res = await fetch('/api/payments/activate', {
+   225→        method: 'POST',
+   226→        headers: { 'Content-Type': 'application/json' },
+   227→        body: JSON.stringify({
+   228→          applicationId: loanApplication.id,
+   229→          phoneNumber,
+   230→          gateway: gateway === 'auto' ? undefined : gateway,
+   231→        }),
+   232→      });
+   233→
+   234→      const data = await res.json();
+   235→
+   236→      if (!res.ok) {
+   237→        setFeeError(data.error || 'Payment failed');
+   238→        setPaymentStatus('idle');
+   239→        return;
+   240→      }
+   241→
+   242→      // STK Push sent successfully - start polling
+   243→      if (data.xdigitex?.reference) {
+   244→        setPaymentReference(data.xdigitex.reference);
+   245→        setPaymentStatus('polling');
+   246→        setPollCount(0);
+   247→      } else {
+   248→        // Fallback: no reference, just mark as processing
+   249→        setPaymentStatus('idle');
+   250→        setFeeError('Payment initiated but no reference returned. Please check your phone.');
+   251→      }
+   252→    } catch {
+   253→      setFeeError('Network error. Please try again.');
+   254→      setPaymentStatus('idle');
+   255→    } finally {
+   256→      setPayingFee(false);
+   257→    }
+   258→  };
+   259→
+   260→  const steps = [
+   261→    { number: 1, label: 'Select Amount' },
+   262→    { number: 2, label: 'Review Details' },
+   263→    { number: 3, label: 'Confirm & Pay' },
+   264→  ];
+   265→
+   266→  const getGatewayLabel = (g: GatewayType) => {
+   267→    switch (g) {
+   268→      case 'safaricom': return 'Safaricom M-Pesa';
+   269→      case 'airtel': return 'Airtel Money';
+   270→      case 'auto': return 'Auto-Detect';
+   271→    }
+   272→  };
+   273→
+   274→  return (
+   275→    <div className="min-h-screen bg-gray-50 py-6 px-4">
+   276→      <div className="max-w-lg mx-auto space-y-6">
+   277→        {/* Stepper */}
+   278→        <div className="flex items-center justify-center">
+   279→          {steps.map((s, i) => (
+   280→            <div key={s.number} className="flex items-center">
+   281→              <div className="flex flex-col items-center">
+   282→                <div
+   283→                  className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
+   284→                    step >= s.number
+   285→                      ? 'bg-[#00A651] text-white'
+   286→                      : 'bg-gray-200 text-gray-500'
+   287→                  }`}
+   288→                >
+   289→                  {step > s.number ? (
+   290→                    <CheckCircle2 className="size-5" />
+   291→                  ) : (
+   292→                    s.number
+   293→                  )}
+   294→                </div>
+   295→                <span
+   296→                  className={`text-[10px] sm:text-xs mt-1 font-medium ${
+   297→                    step >= s.number ? 'text-[#00A651]' : 'text-gray-400'
+   298→                  }`}
+   299→                >
+   300→                  {s.label}
+   301→                </span>
+   302→              </div>
+   303→              {i < steps.length - 1 && (
+   304→                <div
+   305→                  className={`w-10 sm:w-16 h-0.5 mx-1 mb-5 transition-colors ${
+   306→                    step > s.number ? 'bg-[#00A651]' : 'bg-gray-200'
+   307→                  }`}
+   308→                />
+   309→              )}
+   310→            </div>
+   311→          ))}
+   312→        </div>
+   313→
+   314→        {/* Step 1: Select Loan Amount */}
+   315→        {step === 1 && (
+   316→          <Card>
+   317→            <CardHeader>
+   318→              <CardTitle className="flex items-center gap-2 text-xl text-[#333333]">
+   319→                <Banknote className="size-5 text-[#00A651]" />
+   320→                Select Loan Amount
+   321→              </CardTitle>
+   322→              <CardDescription>
+   323→                Choose a preset amount or enter your own custom amount (minimum KES 5,000)
+   324→              </CardDescription>
+   325→            </CardHeader>
+   326→            <CardContent className="space-y-5">
+   327→              {error && (
+   328→                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">
+   329→                  <AlertCircle className="size-4 shrink-0" />
+   330→                  {error}
+   331→                </div>
+   332→              )}
+   333→
+   334→              {/* Mode Toggle */}
+   335→              <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+   336→                <button
+   337→                  onClick={() => { setIsCustomMode(false); setError(''); }}
+   338→                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold transition-colors cursor-pointer ${
+   339→                    !isCustomMode
+   340→                      ? 'bg-[#00A651] text-white'
+   341→                      : 'bg-white text-gray-600 hover:bg-gray-50'
+   342→                  }`}
+   343→                >
+   344→                  <Sparkles className="size-4" />
+   345→                  Preset Amounts
+   346→                </button>
+   347→                <button
+   348→                  onClick={() => { setIsCustomMode(true); setError(''); }}
+   349→                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold transition-colors cursor-pointer ${
+   350→                    isCustomMode
+   351→                      ? 'bg-[#00A651] text-white'
+   352→                      : 'bg-white text-gray-600 hover:bg-gray-50'
+   353→                  }`}
+   354→                >
+   355→                  <Pencil className="size-4" />
+   356→                  Custom Amount
+   357→                </button>
+   358→              </div>
+   359→
+   360→              {/* Preset Amounts */}
+   361→              {!isCustomMode && (
+   362→                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+   363→                  {LOAN_PRODUCTS.map((product) => {
+   364→                    const isSelected = selectedAmount === product.amount;
+   365→                    return (
+   366→                      <button
+   367→                        key={product.amount}
+   368→                        onClick={() => {
+   369→                          setSelectedAmount(product.amount);
+   370→                          setError('');
+   371→                        }}
+   372→                        className={`relative p-4 rounded-xl border-2 text-center transition-all hover:shadow-md cursor-pointer ${
+   373→                          isSelected
+   374→                            ? 'border-[#00A651] bg-[#00A651]/5 shadow-sm'
+   375→                            : 'border-gray-200 bg-white hover:border-[#00A651]/40'
+   376→                        }`}
+   377→                      >
+   378→                        {isSelected && (
+   379→                          <div className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[#00A651] flex items-center justify-center">
+   380→                            <CheckCircle2 className="size-3 text-white" />
+   381→                          </div>
+   382→                        )}
+   383→                        <p className="font-bold text-[#333333] text-sm sm:text-base">
+   384→                          {formatCurrency(product.amount)}
+   385→                        </p>
+   386→                        <p className="text-xs text-gray-500 mt-1">
+   387→                          Fee: {formatCurrency(product.fee)}
+   388→                        </p>
+   389→                      </button>
+   390→                    );
+   391→                  })}
+   392→                </div>
+   393→              )}
+   394→
+   395→              {/* Custom Amount Editor */}
+   396→              {isCustomMode && (
+   397→                <div className="space-y-5 p-4 rounded-xl bg-[#00A651]/5 border border-[#00A651]/20">
+   398→                  <div className="flex items-center gap-2 text-[#00A651]">
+   399→                    <Pencil className="size-4" />
+   400→                    <span className="font-semibold text-sm">Enter Your Preferred Amount</span>
+   401→                  </div>
+   402→
+   403→                  <div className="space-y-2">
+   404→                    <Label htmlFor="custom-amount" className="text-sm font-medium text-gray-700">
+   405→                      Loan Amount (KES)
+   406→                    </Label>
+   407→                    <div className="relative">
+   408→                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm">
+   409→                        KES
+   410→                      </span>
+   411→                      <Input
+   412→                        id="custom-amount"
+   413→                        type="text"
+   414→                        inputMode="numeric"
+   415→                        placeholder="Enter amount (min 5,000)"
+   416→                        value={customAmount ? Number(customAmount).toLocaleString() : ''}
+   417→                        onChange={(e) => {
+   418→                          const raw = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, '');
+   419→                          handleCustomAmountChange(raw);
+   420→                        }}
+   421→                        className="pl-12 h-12 text-lg font-bold text-[#333333] border-[#00A651]/30 focus:border-[#00A651]"
+   422→                      />
+   423→                    </div>
+   424→                  </div>
+   425→
+   426→                  <div className="space-y-3">
+   427→                    <div className="flex items-center justify-between text-xs text-gray-500">
+   428→                      <span>{formatCurrency(MIN_LOAN_AMOUNT)}</span>
+   429→                      <span className="text-sm font-bold text-[#00A651]">
+   430→                        {formatCurrency(parseInt(customAmount) || MIN_LOAN_AMOUNT)}
+   431→                      </span>
+   432→                      <span>{formatCurrency(MAX_LOAN_AMOUNT)}</span>
+   433→                    </div>
+   434→                    <Slider
+   435→                      min={MIN_LOAN_AMOUNT}
+   436→                      max={MAX_LOAN_AMOUNT}
+   437→                      step={500}
+   438→                      value={[parseInt(customAmount) || MIN_LOAN_AMOUNT]}
+   439→                      onValueChange={handleCustomSliderChange}
+   440→                      className="[&_[data-slot=slider-track]]:h-2 [&_[data-slot=slider-range]]:bg-[#00A651] [&_[data-slot=slider-thumb]]:border-[#00A651] [&_[data-slot=slider-thumb]]:size-5"
+   441→                    />
+   442→                  </div>
+   443→
+   444→                  {parseInt(customAmount) >= MIN_LOAN_AMOUNT && (
+   445→                    <div className="space-y-2 rounded-lg bg-white p-4 border border-[#00A651]/10">
+   446→                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+   447→                        Auto-Calculated Breakdown
+   448→                      </h4>
+   449→                      <div className="flex justify-between text-sm">
+   450→                        <span className="text-gray-600">Processing Fee</span>
+   451→                        <span className="font-semibold text-red-500">-{formatCurrency(customProcessingFee)}</span>
+   452→                      </div>
+   453→                      <div className="flex justify-between text-sm">
+   454→                        <span className="text-gray-600">Amount You Receive</span>
+   455→                        <span className="font-semibold text-[#00A651]">
+   456→                          {formatCurrency((parseInt(customAmount) || MIN_LOAN_AMOUNT) - customProcessingFee)}
+   457→                        </span>
+   458→                      </div>
+   459→                      <Separator />
+   460→                      <div className="flex justify-between text-sm">
+   461→                        <span className="text-gray-600">Interest (15%, 30 days)</span>
+   462→                        <span className="font-semibold text-orange-500">
+   463→                          +{formatCurrency((parseInt(customAmount) || MIN_LOAN_AMOUNT) * INTEREST_RATE)}
+   464→                        </span>
+   465→                      </div>
+   466→                      <div className="flex justify-between text-sm">
+   467→                        <span className="text-gray-600">Total Repayment</span>
+   468→                        <span className="font-bold text-[#333333]">
+   469→                          {formatCurrency((parseInt(customAmount) || MIN_LOAN_AMOUNT) * (1 + INTEREST_RATE))}
+   470→                        </span>
+   471→                      </div>
+   472→                      <Separator />
+   473→                      <div className="flex justify-between text-sm">
+   474→                        <span className="text-gray-600">Activation Fee</span>
+   475→                        <span className="font-semibold text-blue-600">{formatCurrency(ACTIVATION_FEE)}</span>
+   476→                      </div>
+   477→                    </div>
+   478→                  )}
+   479→
+   480→                  {parseInt(customAmount) < MIN_LOAN_AMOUNT && customAmount !== '' && (
+   481→                    <p className="text-xs text-red-500 flex items-center gap-1">
+   482→                      <AlertCircle className="size-3" />
+   483→                      Minimum loan amount is {formatCurrency(MIN_LOAN_AMOUNT)}
+   484→                    </p>
+   485→                  )}
+   486→                </div>
+   487→              )}
+   488→
+   489→              {(selectedAmount || (isCustomMode && parseInt(customAmount) >= MIN_LOAN_AMOUNT)) && loanDetails && (
+   490→                <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-800 flex items-start gap-2">
+   491→                  <Info className="size-4 mt-0.5 shrink-0" />
+   492→                  <div>
+   493→                    You will receive <strong>{formatCurrency(loanDetails.amountReceived)}</strong> after
+   494→                    deducting the processing fee of {formatCurrency(loanDetails.processingFee)}.
+   495→                    Activation fee of <strong>{formatCurrency(ACTIVATION_FEE)}</strong> required to finalize.
+   496→                  </div>
+   497→                </div>
+   498→              )}
+   499→
+   500→              <Button
+   501→                onClick={handleStep1Continue}
+   502→                disabled={
+   503→                  loading ||
+   504→                  (!isCustomMode && !selectedAmount) ||
+   505→                  (isCustomMode && (parseInt(customAmount) || 0) < MIN_LOAN_AMOUNT)
+   506→                }
+   507→                className="w-full h-11 bg-[#00A651] hover:bg-[#008f45] text-white font-medium cursor-pointer"
+   508→              >
+   509→                {loading ? (
+   510→                  <span className="flex items-center gap-2">
+   511→                    <span className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+   512→                    Processing...
+   513→                  </span>
+   514→                ) : (
+   515→                  <>
+   516→                    Continue
+   517→                    <ChevronRight className="size-4 ml-1" />
+   518→                  </>
+   519→                )}
+   520→              </Button>
+   521→            </CardContent>
+   522→          </Card>
+   523→        )}
+   524→
+   525→        {/* Step 2: Review Loan Details */}
+   526→        {step === 2 && loanDetails && (
+   527→          <Card>
+   528→            <CardHeader>
+   529→              <CardTitle className="flex items-center gap-2 text-xl text-[#333333]">
+   530→                <FileText className="size-5 text-[#00A651]" />
+   531→                Review Loan Details
+   532→              </CardTitle>
+   533→              <CardDescription>
+   534→                Please review the details of your loan before confirming
+   535→              </CardDescription>
+   536→            </CardHeader>
+   537→            <CardContent className="space-y-4">
+   538→              <div className="space-y-3">
+   539→                <div className="flex justify-between items-center py-2">
+   540→                  <span className="text-gray-600 text-sm">Loan Amount</span>
+   541→                  <span className="font-semibold text-[#333333]">{formatCurrency(loanDetails.loanAmount)}</span>
+   542→                </div>
+   543→                <Separator />
+   544→                <div className="flex justify-between items-center py-2">
+   545→                  <span className="text-gray-600 text-sm">Processing Fee</span>
+   546→                  <span className="font-semibold text-red-600">-{formatCurrency(loanDetails.processingFee)}</span>
+   547→                </div>
+   548→                <Separator />
+   549→                <div className="flex justify-between items-center py-2 bg-green-50 -mx-6 px-6">
+   550→                  <span className="text-green-800 font-medium text-sm">Amount You Will Receive</span>
+   551→                  <span className="font-bold text-[#00A651] text-lg">{formatCurrency(loanDetails.amountReceived)}</span>
+   552→                </div>
+   553→                <Separator />
+   554→                <div className="flex justify-between items-center py-2">
+   555→                  <span className="text-gray-600 text-sm">Interest Rate</span>
+   556→                  <span className="font-semibold text-[#333333]">15%</span>
+   557→                </div>
+   558→                <Separator />
+   559→                <div className="flex justify-between items-center py-2">
+   560→                  <span className="text-gray-600 text-sm">Total Repayment</span>
+   561→                  <span className="font-semibold text-[#333333]">{formatCurrency(loanDetails.totalRepayment)}</span>
+   562→                </div>
+   563→                <Separator />
+   564→                <div className="flex justify-between items-center py-2">
+   565→                  <span className="text-gray-600 text-sm">Repayment Date</span>
+   566→                  <span className="font-semibold text-[#333333]">{getRepaymentDate()}</span>
+   567→                </div>
+   568→                <Separator />
+   569→                <div className="flex justify-between items-center py-2 bg-blue-50 -mx-6 px-6 rounded">
+   570→                  <span className="text-blue-800 font-medium text-sm">Activation Fee (Due Now)</span>
+   571→                  <span className="font-bold text-blue-700">{formatCurrency(ACTIVATION_FEE)}</span>
+   572→                </div>
+   573→              </div>
+   574→
+   575→              <div className="flex gap-3 pt-2">
+   576→                <Button
+   577→                  variant="outline"
+   578→                  onClick={() => setStep(1)}
+   579→                  className="flex-1 h-11 cursor-pointer"
+   580→                >
+   581→                  <ChevronLeft className="size-4 mr-1" />
+   582→                  Back
+   583→                </Button>
+   584→                <Button
+   585→                  onClick={() => setStep(3)}
+   586→                  className="flex-1 h-11 bg-[#00A651] hover:bg-[#008f45] text-white font-medium cursor-pointer"
+   587→                >
+   588→                  Confirm & Continue
+   589→                  <ChevronRight className="size-4 ml-1" />
+   590→                </Button>
+   591→              </div>
+   592→            </CardContent>
+   593→          </Card>
+   594→        )}
+   595→
+   596→        {/* Step 3: Application Confirmation with STK Push Payment */}
+   597→        {step === 3 && loanDetails && loanApplication && (
+   598→          <Card>
+   599→            <CardHeader>
+   600→              <CardTitle className="flex items-center gap-2 text-xl text-[#333333]">
+   601→                <Shield className="size-5 text-[#00A651]" />
+   602→                Confirm Your Loan Application
+   603→              </CardTitle>
+   604→              <CardDescription>
+   605→                Review your application details and pay the activation fee via STK Push
+   606→              </CardDescription>
+   607→            </CardHeader>
+   608→            <CardContent className="space-y-4">
+   609→              {/* Application Details */}
+   610→              <div className="space-y-3">
+   611→                <div className="flex justify-between items-center py-2">
+   612→                  <span className="text-gray-600 text-sm">Applicant Name</span>
+   613→                  <span className="font-semibold text-[#333333]">{user?.fullName || 'N/A'}</span>
+   614→                </div>
+   615→                <Separator />
+   616→                <div className="flex justify-between items-center py-2">
+   617→                  <span className="text-gray-600 text-sm">Loan Amount</span>
+   618→                  <span className="font-semibold text-[#333333]">{formatCurrency(loanDetails.loanAmount)}</span>
+   619→                </div>
+   620→                <Separator />
+   621→                <div className="flex justify-between items-center py-2">
+   622→                  <span className="text-gray-600 text-sm">Processing Fee</span>
+   623→                  <span className="font-semibold text-[#333333]">{formatCurrency(loanDetails.processingFee)}</span>
+   624→                </div>
+   625→                <Separator />
+   626→                <div className="flex justify-between items-center py-2">
+   627→                  <span className="text-gray-600 text-sm">Net Amount to Receive</span>
+   628→                  <span className="font-semibold text-[#00A651]">{formatCurrency(loanDetails.amountReceived)}</span>
+   629→                </div>
+   630→                <Separator />
+   631→                <div className="flex justify-between items-center py-2">
+   632→                  <span className="text-gray-600 text-sm">Repayment Terms</span>
+   633→                  <span className="font-semibold text-[#333333]">{formatCurrency(loanDetails.totalRepayment)} in 30 days</span>
+   634→                </div>
+   635→                <Separator />
+   636→                <div className="flex justify-between items-center py-2">
+   637→                  <span className="text-gray-600 text-sm">Application Status</span>
+   638→                  <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
+   639→                    Pending Final Verification
+   640→                  </Badge>
+   641→                </div>
+   642→              </div>
+   643→
+   644→              <Separator className="my-2" />
+   645→
+   646→              {/* STK Push Payment Section */}
+   647→              <div className="rounded-xl border-2 border-[#00A651]/20 bg-[#00A651]/5 p-5 space-y-4">
+   648→                <div className="flex items-start gap-3">
+   649→                  <div className="w-10 h-10 rounded-full bg-[#00A651] flex items-center justify-center shrink-0">
+   650→                    <Banknote className="size-5 text-white" />
+   651→                  </div>
+   652→                  <div>
+   653→                    <h3 className="font-semibold text-[#333333]">Activation Fee Payment</h3>
+   654→                    <p className="text-sm text-gray-600 mt-1">
+   655→                      To finalize your application, an activation fee of{' '}
+   656→                      <strong className="text-[#00A651]">{formatCurrency(ACTIVATION_FEE)}</strong> is required.
+   657→                      Payment is made via STK Push (M-Pesa or Airtel Money).
+   658→                    </p>
+   659→                  </div>
+   660→                </div>
+   661→
+   662→                {feeError && (
+   663→                  <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">
+   664→                    <AlertCircle className="size-4 shrink-0" />
+   665→                    {feeError}
+   666→                  </div>
+   667→                )}
+   668→
+   669→                {/* Payment Status Indicator */}
+   670→                {paymentStatus === 'polling' && (
+   671→                  <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 space-y-3">
+   672→                    <div className="flex items-center gap-3">
+   673→                      <Loader2 className="size-5 text-blue-600 animate-spin" />
+   674→                      <div>
+   675→                        <p className="font-semibold text-blue-800">Check Your Phone!</p>
+   676→                        <p className="text-sm text-blue-600">
+   677→                          An STK Push has been sent to {phoneNumber}. Enter your PIN to complete payment.
+   678→                        </p>
+   679→                      </div>
+   680→                    </div>
+   681→                    <div className="flex items-center gap-2">
+   682→                      <Smartphone className="size-4 text-blue-500" />
+   683→                      <span className="text-xs text-blue-600">
+   684→                        Waiting for payment confirmation... (Attempt {pollCount + 1}/30)
+   685→                      </span>
+   686→                    </div>
+   687→                  </div>
+   688→                )}
+   689→
+   690→                {paymentStatus === 'completed' && (
+   691→                  <div className="p-4 rounded-lg bg-green-50 border border-green-200 flex items-center gap-3">
+   692→                    <CheckCircle2 className="size-5 text-green-600" />
+   693→                    <div>
+   694→                      <p className="font-semibold text-green-800">Payment Successful!</p>
+   695→                      <p className="text-sm text-green-600">Redirecting to confirmation...</p>
+   696→                    </div>
+   697→                  </div>
+   698→                )}
+   699→
+   700→                {/* Phone Number Input */}
+   701→                <div className="space-y-2">
+   702→                  <Label htmlFor="phone" className="flex items-center gap-2 text-sm">
+   703→                    <Phone className="size-4 text-[#00A651]" />
+   704→                    Phone Number for STK Push
+   705→                  </Label>
+   706→                  <Input
+   707→                    id="phone"
+   708→                    type="tel"
+   709→                    placeholder="e.g. 0712345678 or 254712345678"
+   710→                    value={phoneNumber}
+   711→                    onChange={(e) => setPhoneNumber(e.target.value)}
+   712→                    className="h-11"
+   713→                    disabled={paymentStatus === 'polling' || paymentStatus === 'completed'}
+   714→                  />
+   715→                  <p className="text-xs text-gray-500">
+   716→                    Enter your M-Pesa or Airtel Money phone number to receive the payment prompt
+   717→                  </p>
+   718→                </div>
+   719→
+   720→                {/* Gateway Selection */}
+   721→                <div className="space-y-2">
+   722→                  <Label className="flex items-center gap-2 text-sm">
+   723→                    <Signal className="size-4 text-[#00A651]" />
+   724→                    Payment Network
+   725→                  </Label>
+   726→                  <Select
+   727→                    value={gateway}
+   728→                    onValueChange={(val) => setGateway(val as GatewayType)}
+   729→                    disabled={paymentStatus === 'polling' || paymentStatus === 'completed'}
+   730→                  >
+   731→                    <SelectTrigger className="h-11">
+   732→                      <SelectValue placeholder="Select network" />
+   733→                    </SelectTrigger>
+   734→                    <SelectContent>
+   735→                      <SelectItem value="auto">
+   736→                        <div className="flex items-center gap-2">
+   737→                          <Signal className="size-4 text-gray-500" />
+   738→                          <span>Auto-Detect (Recommended)</span>
+   739→                        </div>
+   740→                      </SelectItem>
+   741→                      <SelectItem value="safaricom">
+   742→                        <div className="flex items-center gap-2">
+   743→                          <div className="w-4 h-4 rounded-full bg-green-600" />
+   744→                          <span>Safaricom M-Pesa</span>
+   745→                        </div>
+   746→                      </SelectItem>
+   747→                      <SelectItem value="airtel">
+   748→                        <div className="flex items-center gap-2">
+   749→                          <div className="w-4 h-4 rounded-full bg-red-600" />
+   750→                          <span>Airtel Money</span>
+   751→                        </div>
+   752→                      </SelectItem>
+   753→                    </SelectContent>
+   754→                  </Select>
+   755→                  <p className="text-xs text-gray-500">
+   756→                    {gateway === 'auto'
+   757→                      ? 'Network will be auto-detected from your phone number'
+   758→                      : `Payment will be processed via ${getGatewayLabel(gateway)} STK Push`}
+   759→                  </p>
+   760→                </div>
+   761→
+   762→                <Button
+   763→                  onClick={handlePayActivation}
+   764→                  disabled={payingFee || !phoneNumber || paymentStatus === 'polling' || paymentStatus === 'completed'}
+   765→                  className="w-full h-12 bg-[#00A651] hover:bg-[#008f45] text-white font-semibold text-base cursor-pointer"
+   766→                >
+   767→                  {payingFee ? (
+   768→                    <span className="flex items-center gap-2">
+   769→                      <span className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+   770→                      Initiating STK Push...
+   771→                    </span>
+   772→                  ) : paymentStatus === 'polling' ? (
+   773→                    <span className="flex items-center gap-2">
+   774→                      <Loader2 className="size-4 animate-spin" />
+   775→                      Waiting for Payment...
+   776→                    </span>
+   777→                  ) : (
+   778→                    <>
+   779→                      Pay Activation Fee ({formatCurrency(ACTIVATION_FEE)})
+   780→                      <ArrowRight className="size-4 ml-2" />
+   781→                    </>
+   782→                  )}
+   783→                </Button>
+   784→
+   785→                <div className="flex items-center gap-2 text-xs text-gray-400">
+   786→                  <Shield className="size-3" />
+   787→                  <span>Powered by Xdigitex Pay | Secure STK Push Payment</span>
+   788→                </div>
+   789→              </div>
+   790→
+   791→              <Button
+   792→                variant="ghost"
+   793→                onClick={() => { setStep(2); setPaymentStatus('idle'); setFeeError(''); }}
+   794→                className="w-full text-gray-500 cursor-pointer"
+   795→                disabled={paymentStatus === 'polling'}
+   796→              >
+   797→                <ChevronLeft className="size-4 mr-1" />
+   798→                Back to Review
+   799→              </Button>
+   800→            </CardContent>
+   801→          </Card>
+   802→        )}
+   803→      </div>
+   804→    </div>
+   805→  );
+   806→}
+   807→

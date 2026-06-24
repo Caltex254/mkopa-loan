@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "The screenshot displays a web browser (likely Google Chrome, based on the interface) showing an error page. The URL in the address bar is \"mkopa-loan.kenya.qzz.io\". The main content area of the page is mostly blank, with a centered error message in black text. The error message reads: \"Application error: a client-side exception has occurred while loading mkopa-loan.kenya.qzz.io (see the browser console for more information).\" The page has a minimalist design with a white background and no other visible elements or content. The browser's navigation bar at the top shows standard icons including a back button, forward button, refresh button, the URL bar, a new tab button, a tab counter (showing \"36\"), and a notification bell icon.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1781554579,
+  "id": "202606160416177b3080f822244ba7",
+  "model": "glm-4.6v",
+  "object": "chat.completion",
+  "request_id": "202606160416177b3080f822244ba7",
+  "usage": {
+    "completion_tokens": 163,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 1004,
+    "prompt_tokens_details": {
+      "cached_tokens": 6
+    },
+    "total_tokens": 1167
+  }
+}

@@ -1,0 +1,602 @@
+   760→  // ═══════════════════════════════════════════════════════════════════════
+   761→  const renderOverview = () => (
+   762→    <div className="space-y-6">
+   763→      <div className="flex items-center justify-between">
+   764→        <div>
+   765→          <h2 className="text-2xl font-bold text-[#333333]">Dashboard Overview</h2>
+   766→          <p className="text-gray-500 mt-1">Welcome back, {user?.fullName || 'Admin'}</p>
+   767→        </div>
+   768→        <Button
+   769→          variant="outline"
+   770→          size="sm"
+   771→          onClick={() => fetchStats()}
+   772→          className="text-[#00A651] border-[#00A651]/30 hover:bg-[#00A651]/10 cursor-pointer"
+   773→        >
+   774→          <RefreshCw className="size-3.5 mr-1" />
+   775→          Refresh
+   776→        </Button>
+   777→      </div>
+   778→
+   779→      {/* Stats Grid */}
+   780→      {loadingStats ? (
+   781→        <div className="flex items-center justify-center py-12">
+   782→          <Loader2 className="size-8 animate-spin text-[#00A651]" />
+   783→        </div>
+   784→      ) : stats ? (
+   785→        <>
+   786→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   787→            <Card className="border-l-4 border-l-[#00A651]">
+   788→              <CardContent className="p-5">
+   789→                <div className="flex items-center justify-between">
+   790→                  <div>
+   791→                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total Users</p>
+   792→                    <p className="text-2xl font-bold text-[#333333] mt-1">{stats.totalUsers}</p>
+   793→                  </div>
+   794→                  <div className="flex items-center justify-center size-12 rounded-xl bg-[#00A651]/10">
+   795→                    <Users className="size-6 text-[#00A651]" />
+   796→                  </div>
+   797→                </div>
+   798→              </CardContent>
+   799→            </Card>
+   800→            <Card className="border-l-4 border-l-blue-500">
+   801→              <CardContent className="p-5">
+   802→                <div className="flex items-center justify-between">
+   803→                  <div>
+   804→                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Applications</p>
+   805→                    <p className="text-2xl font-bold text-[#333333] mt-1">{stats.totalApplications}</p>
+   806→                  </div>
+   807→                  <div className="flex items-center justify-center size-12 rounded-xl bg-blue-50">
+   808→                    <FileText className="size-6 text-blue-600" />
+   809→                  </div>
+   810→                </div>
+   811→              </CardContent>
+   812→            </Card>
+   813→            <Card className="border-l-4 border-l-green-500">
+   814→              <CardContent className="p-5">
+   815→                <div className="flex items-center justify-between">
+   816→                  <div>
+   817→                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Approved</p>
+   818→                    <p className="text-2xl font-bold text-[#333333] mt-1">{stats.approvedLoans}</p>
+   819→                  </div>
+   820→                  <div className="flex items-center justify-center size-12 rounded-xl bg-green-50">
+   821→                    <CheckCircle2 className="size-6 text-green-600" />
+   822→                  </div>
+   823→                </div>
+   824→              </CardContent>
+   825→            </Card>
+   826→            <Card className="border-l-4 border-l-yellow-500">
+   827→              <CardContent className="p-5">
+   828→                <div className="flex items-center justify-between">
+   829→                  <div>
+   830→                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total Disbursed</p>
+   831→                    <p className="text-2xl font-bold text-[#333333] mt-1">{formatCurrency(stats.totalDisbursed)}</p>
+   832→                  </div>
+   833→                  <div className="flex items-center justify-center size-12 rounded-xl bg-[#00A651]/10">
+   834→                    <DollarSign className="size-6 text-[#00A651]" />
+   835→                  </div>
+   836→                </div>
+   837→              </CardContent>
+   838→            </Card>
+   839→          </div>
+   840→
+   841→          {/* Secondary stats */}
+   842→          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   843→            <Card>
+   844→              <CardContent className="p-5 flex items-center gap-4">
+   845→                <div className="flex items-center justify-center size-10 rounded-lg bg-yellow-50">
+   846→                  <ShieldCheck className="size-5 text-yellow-600" />
+   847→                </div>
+   848→                <div>
+   849→                  <p className="text-xs text-gray-500">Pending KYC</p>
+   850→                  <p className="text-xl font-bold text-[#333333]">{stats.pendingKYC}</p>
+   851→                </div>
+   852→              </CardContent>
+   853→            </Card>
+   854→            <Card>
+   855→              <CardContent className="p-5 flex items-center gap-4">
+   856→                <div className="flex items-center justify-center size-10 rounded-lg bg-orange-50">
+   857→                  <Clock className="size-5 text-orange-600" />
+   858→                </div>
+   859→                <div>
+   860→                  <p className="text-xs text-gray-500">Pending Review</p>
+   861→                  <p className="text-xl font-bold text-[#333333]">{stats.pendingReview}</p>
+   862→                </div>
+   863→              </CardContent>
+   864→            </Card>
+   865→            <Card>
+   866→              <CardContent className="p-5 flex items-center gap-4">
+   867→                <div className="flex items-center justify-center size-10 rounded-lg bg-red-50">
+   868→                  <XCircle className="size-5 text-red-600" />
+   869→                </div>
+   870→                <div>
+   871→                  <p className="text-xs text-gray-500">Rejected Loans</p>
+   872→                  <p className="text-xl font-bold text-[#333333]">{stats.rejectedLoans}</p>
+   873→                </div>
+   874→              </CardContent>
+   875→            </Card>
+   876→          </div>
+   877→
+   878→          {/* Charts Section */}
+   879→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   880→            <Card>
+   881→              <CardHeader className="pb-2">
+   882→                <CardTitle className="text-base">Monthly Applications</CardTitle>
+   883→              </CardHeader>
+   884→              <CardContent>
+   885→                <MiniBarChart data={monthlyStats} dataKey="applications" label="Applications per Month" />
+   886→              </CardContent>
+   887→            </Card>
+   888→            <Card>
+   889→              <CardHeader className="pb-2">
+   890→                <CardTitle className="text-base">Monthly Disbursements</CardTitle>
+   891→              </CardHeader>
+   892→              <CardContent>
+   893→                <MiniBarChart data={monthlyStats} dataKey="disbursed" label="Amount Disbursed" />
+   894→              </CardContent>
+   895→            </Card>
+   896→          </div>
+   897→
+   898→          {/* Approval Rate */}
+   899→          <Card>
+   900→            <CardHeader className="pb-2">
+   901→              <CardTitle className="text-base">Loan Approval Rate</CardTitle>
+   902→            </CardHeader>
+   903→            <CardContent>
+   904→              <div className="space-y-2">
+   905→                <div className="flex justify-between text-sm">
+   906→                  <span className="text-gray-500">Approval Rate</span>
+   907→                  <span className="font-bold text-[#00A651]">
+   908→                    {stats.totalApplications > 0
+   909→                      ? Math.round((stats.approvedLoans / stats.totalApplications) * 100)
+   910→                      : 0}%
+   911→                  </span>
+   912→                </div>
+   913→                <Progress
+   914→                  value={stats.totalApplications > 0 ? (stats.approvedLoans / stats.totalApplications) * 100 : 0}
+   915→                  className="h-3"
+   916→                />
+   917→                <div className="flex justify-between text-xs text-gray-400">
+   918→                  <span>{stats.approvedLoans} approved</span>
+   919→                  <span>{stats.rejectedLoans} rejected</span>
+   920→                  <span>{stats.totalApplications} total</span>
+   921→                </div>
+   922→              </div>
+   923→            </CardContent>
+   924→          </Card>
+   925→        </>
+   926→      ) : (
+   927→        <Card>
+   928→          <CardContent className="p-6 text-center text-gray-500">
+   929→            <AlertCircle className="size-8 mx-auto mb-2 text-gray-400" />
+   930→            Failed to load dashboard stats
+   931→          </CardContent>
+   932→        </Card>
+   933→      )}
+   934→
+   935→      {/* Recent Activity */}
+   936→      <Card>
+   937→        <CardHeader>
+   938→          <CardTitle className="text-lg">Recent Loan Applications</CardTitle>
+   939→          <CardDescription>Latest applications submitted</CardDescription>
+   940→        </CardHeader>
+   941→        <CardContent>
+   942→          {loadingApplications ? (
+   943→            <div className="flex items-center justify-center py-8">
+   944→              <Loader2 className="size-6 animate-spin text-[#00A651]" />
+   945→            </div>
+   946→          ) : applications.length > 0 ? (
+   947→            <div className="space-y-3">
+   948→              {applications.slice(0, 5).map((app) => (
+   949→                <div
+   950→                  key={app.id}
+   951→                  className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
+   952→                >
+   953→                  <div className="flex items-center gap-3">
+   954→                    <Avatar className="size-9">
+   955→                      <AvatarFallback className="bg-[#00A651] text-white text-xs">
+   956→                        {app.user.fullName.charAt(0).toUpperCase()}
+   957→                      </AvatarFallback>
+   958→                    </Avatar>
+   959→                    <div>
+   960→                      <p className="text-sm font-medium text-[#333333]">{app.user.fullName}</p>
+   961→                      <p className="text-xs text-gray-500">{formatDate(app.createdAt)}</p>
+   962→                    </div>
+   963→                  </div>
+   964→                  <div className="flex items-center gap-3">
+   965→                    <span className="text-sm font-semibold text-[#333333]">
+   966→                      {formatCurrency(app.loanAmount)}
+   967→                    </span>
+   968→                    <Badge className={getStatusColor(app.status)} variant="secondary">
+   969→                      {formatStatus(app.status)}
+   970→                    </Badge>
+   971→                  </div>
+   972→                </div>
+   973→              ))}
+   974→            </div>
+   975→          ) : (
+   976→            <p className="text-sm text-gray-500 text-center py-4">No applications yet</p>
+   977→          )}
+   978→        </CardContent>
+   979→      </Card>
+   980→    </div>
+   981→  );
+   982→
+   983→  // ═══════════════════════════════════════════════════════════════════════
+   984→  // USERS MANAGEMENT SECTION
+   985→  // ═══════════════════════════════════════════════════════════════════════
+   986→  const renderUsers = () => (
+   987→    <div className="space-y-6">
+   988→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   989→        <div>
+   990→          <h2 className="text-2xl font-bold text-[#333333]">Users Management</h2>
+   991→          <p className="text-gray-500 mt-1">{usersPagination.total} total users</p>
+   992→        </div>
+   993→        <div className="relative w-full sm:w-72">
+   994→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+   995→          <Input
+   996→            placeholder="Search by name, email, or phone..."
+   997→            value={usersSearch}
+   998→            onChange={(e) => setUsersSearch(e.target.value)}
+   999→            className="pl-9"
+  1000→          />
+  1001→        </div>
+  1002→      </div>
+  1003→
+  1004→      <Card>
+  1005→        <CardContent className="p-0">
+  1006→          {loadingUsers ? (
+  1007→            <div className="flex items-center justify-center py-12">
+  1008→              <Loader2 className="size-8 animate-spin text-[#00A651]" />
+  1009→            </div>
+  1010→          ) : (
+  1011→            <>
+  1012→              <div className="overflow-x-auto">
+  1013→                <Table>
+  1014→                  <TableHeader>
+  1015→                    <TableRow>
+  1016→                      <TableHead>User</TableHead>
+  1017→                      <TableHead className="hidden md:table-cell">Phone</TableHead>
+  1018→                      <TableHead>KYC</TableHead>
+  1019→                      <TableHead>Status</TableHead>
+  1020→                      <TableHead className="hidden sm:table-cell">Loans</TableHead>
+  1021→                      <TableHead>Actions</TableHead>
+  1022→                    </TableRow>
+  1023→                  </TableHeader>
+  1024→                  <TableBody>
+  1025→                    {filteredUsers.length === 0 ? (
+  1026→                      <TableRow>
+  1027→                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+  1028→                          No users found
+  1029→                        </TableCell>
+  1030→                      </TableRow>
+  1031→                    ) : (
+  1032→                      filteredUsers.map((u) => (
+  1033→                        <TableRow key={u.id}>
+  1034→                          <TableCell>
+  1035→                            <div className="flex items-center gap-2">
+  1036→                              <Avatar className="size-8">
+  1037→                                <AvatarFallback className="bg-[#00A651] text-white text-xs">
+  1038→                                  {u.fullName.charAt(0).toUpperCase()}
+  1039→                                </AvatarFallback>
+  1040→                              </Avatar>
+  1041→                              <div>
+  1042→                                <p className="font-medium text-sm">{u.fullName}</p>
+  1043→                                <p className="text-xs text-gray-500">{u.email}</p>
+  1044→                              </div>
+  1045→                            </div>
+  1046→                          </TableCell>
+  1047→                          <TableCell className="hidden md:table-cell text-sm text-gray-600">
+  1048→                            {u.phone}
+  1049→                          </TableCell>
+  1050→                          <TableCell>
+  1051→                            <Badge className={getStatusColor(u.kycStatus)} variant="secondary">
+  1052→                              {formatStatus(u.kycStatus)}
+  1053→                            </Badge>
+  1054→                          </TableCell>
+  1055→                          <TableCell>
+  1056→                            <Badge
+  1057→                              className={u.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}
+  1058→                              variant="secondary"
+  1059→                            >
+  1060→                              {u.isActive ? 'Active' : 'Inactive'}
+  1061→                            </Badge>
+  1062→                          </TableCell>
+  1063→                          <TableCell className="hidden sm:table-cell text-sm text-gray-600">
+  1064→                            {u.loanCount}
+  1065→                          </TableCell>
+  1066→                          <TableCell>
+  1067→                            <div className="flex items-center gap-1">
+  1068→                              <Button
+  1069→                                size="sm"
+  1070→                                variant="outline"
+  1071→                                className="h-7 text-xs cursor-pointer"
+  1072→                                onClick={() => handleViewUserDetail(u.id)}
+  1073→                              >
+  1074→                                <Eye className="size-3 mr-0.5" />
+  1075→                                View
+  1076→                              </Button>
+  1077→                              <Button
+  1078→                                size="sm"
+  1079→                                variant={u.isActive ? 'destructive' : 'default'}
+  1080→                                className={`h-7 text-xs cursor-pointer ${
+  1081→                                  u.isActive ? '' : 'bg-[#00A651] hover:bg-[#008f45] text-white'
+  1082→                                }`}
+  1083→                                onClick={() => handleToggleUserActive(u.id, u.isActive)}
+  1084→                              >
+  1085→                                {u.isActive ? (
+  1086→                                  <><UserX className="size-3 mr-0.5" />Deactivate</>
+  1087→                                ) : (
+  1088→                                  <><UserCheck className="size-3 mr-0.5" />Activate</>
+  1089→                                )}
+  1090→                              </Button>
+  1091→                            </div>
+  1092→                          </TableCell>
+  1093→                        </TableRow>
+  1094→                      ))
+  1095→                    )}
+  1096→                  </TableBody>
+  1097→                </Table>
+  1098→              </div>
+  1099→
+  1100→              {/* Pagination */}
+  1101→              {usersPagination.totalPages > 1 && (
+  1102→                <div className="flex items-center justify-between px-4 py-3 border-t">
+  1103→                  <p className="text-sm text-gray-500">
+  1104→                    Page {usersPagination.page} of {usersPagination.totalPages}
+  1105→                  </p>
+  1106→                  <div className="flex gap-2">
+  1107→                    <Button
+  1108→                      variant="outline"
+  1109→                      size="sm"
+  1110→                      disabled={usersPagination.page <= 1}
+  1111→                      onClick={() => fetchUsers(usersPagination.page - 1)}
+  1112→                    >
+  1113→                      Previous
+  1114→                    </Button>
+  1115→                    <Button
+  1116→                      variant="outline"
+  1117→                      size="sm"
+  1118→                      disabled={usersPagination.page >= usersPagination.totalPages}
+  1119→                      onClick={() => fetchUsers(usersPagination.page + 1)}
+  1120→                    >
+  1121→                      Next
+  1122→                    </Button>
+  1123→                  </div>
+  1124→                </div>
+  1125→              )}
+  1126→            </>
+  1127→          )}
+  1128→        </CardContent>
+  1129→      </Card>
+  1130→
+  1131→      {/* User Detail Dialog */}
+  1132→      <Dialog open={userDetailOpen} onOpenChange={setUserDetailOpen}>
+  1133→        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+  1134→          <DialogHeader>
+  1135→            <DialogTitle>User Details</DialogTitle>
+  1136→          </DialogHeader>
+  1137→          {userDetailLoading ? (
+  1138→            <div className="flex items-center justify-center py-12">
+  1139→              <Loader2 className="size-8 animate-spin text-[#00A651]" />
+  1140→            </div>
+  1141→          ) : userDetail ? (
+  1142→            <div className="space-y-6">
+  1143→              {/* User Info */}
+  1144→              <div className="flex items-center gap-4">
+  1145→                <Avatar className="size-14">
+  1146→                  <AvatarFallback className="bg-[#00A651] text-white text-xl">
+  1147→                    {userDetail.fullName.charAt(0).toUpperCase()}
+  1148→                  </AvatarFallback>
+  1149→                </Avatar>
+  1150→                <div>
+  1151→                  <h3 className="text-lg font-bold text-[#333333]">{userDetail.fullName}</h3>
+  1152→                  <p className="text-sm text-gray-500">{userDetail.email}</p>
+  1153→                  <div className="flex items-center gap-2 mt-1">
+  1154→                    <Badge
+  1155→                      className={userDetail.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}
+  1156→                      variant="secondary"
+  1157→                    >
+  1158→                      {userDetail.isActive ? 'Active' : 'Inactive'}
+  1159→                    </Badge>
+  1160→                    <span className="text-xs text-gray-400">Joined {formatDate(userDetail.createdAt)}</span>
+  1161→                  </div>
+  1162→                </div>
+  1163→              </div>
+  1164→
+  1165→              <Separator />
+  1166→
+  1167→              {/* KYC Info */}
+  1168→              <div>
+  1169→                <h4 className="font-semibold text-sm text-gray-700 mb-3">KYC Information</h4>
+  1170→                {userDetail.kyc ? (
+  1171→                  <div className="space-y-2">
+  1172→                    <div className="grid grid-cols-2 gap-3 text-sm">
+  1173→                      <div className="bg-gray-50 rounded-lg p-3">
+  1174→                        <p className="text-xs text-gray-500">Legal Name</p>
+  1175→                        <p className="font-medium">{userDetail.kyc.legalName}</p>
+  1176→                      </div>
+  1177→                      <div className="bg-gray-50 rounded-lg p-3">
+  1178→                        <p className="text-xs text-gray-500">National ID</p>
+  1179→                        <p className="font-medium">{userDetail.kyc.nationalId}</p>
+  1180→                      </div>
+  1181→                      <div className="bg-gray-50 rounded-lg p-3">
+  1182→                        <p className="text-xs text-gray-500">Date of Birth</p>
+  1183→                        <p className="font-medium">{userDetail.kyc.dateOfBirth}</p>
+  1184→                      </div>
+  1185→                      <div className="bg-gray-50 rounded-lg p-3">
+  1186→                        <p className="text-xs text-gray-500">Status</p>
+  1187→                        <Badge className={getStatusColor(userDetail.kyc.status)} variant="secondary">
+  1188→                          {formatStatus(userDetail.kyc.status)}
+  1189→                        </Badge>
+  1190→                      </div>
+  1191→                    </div>
+  1192→                    <div className="bg-gray-50 rounded-lg p-3">
+  1193→                      <p className="text-xs text-gray-500 mb-1">Address</p>
+  1194→                      <p className="text-sm">{userDetail.kyc.residentialAddress}</p>
+  1195→                    </div>
+  1196→                    {/* Download KYC Documents */}
+  1197→                    <div className="flex gap-2">
+  1198→                      <Button
+  1199→                        size="sm"
+  1200→                        variant="outline"
+  1201→                        className="text-[#00A651] border-[#00A651]/30 cursor-pointer"
+  1202→                        onClick={() => handleDownloadKycDocument(userDetail.kyc!.id, 'front', userDetail.kyc!.legalName)}
+  1203→                      >
+  1204→                        <Download className="size-3.5 mr-1" />
+  1205→                        Download ID Front
+  1206→                      </Button>
+  1207→                      <Button
+  1208→                        size="sm"
+  1209→                        variant="outline"
+  1210→                        className="text-[#00A651] border-[#00A651]/30 cursor-pointer"
+  1211→                        onClick={() => handleDownloadKycDocument(userDetail.kyc!.id, 'back', userDetail.kyc!.legalName)}
+  1212→                      >
+  1213→                        <Download className="size-3.5 mr-1" />
+  1214→                        Download ID Back
+  1215→                      </Button>
+  1216→                    </div>
+  1217→                  </div>
+  1218→                ) : (
+  1219→                  <p className="text-sm text-gray-400">No KYC submission</p>
+  1220→                )}
+  1221→              </div>
+  1222→
+  1223→              <Separator />
+  1224→
+  1225→              {/* Loan History */}
+  1226→              <div>
+  1227→                <h4 className="font-semibold text-sm text-gray-700 mb-3">Loan Applications ({userDetail.loanApps.length})</h4>
+  1228→                {userDetail.loanApps.length === 0 ? (
+  1229→                  <p className="text-sm text-gray-400">No loan applications</p>
+  1230→                ) : (
+  1231→                  <div className="space-y-2">
+  1232→                    {userDetail.loanApps.slice(0, 5).map((loan) => (
+  1233→                      <div key={loan.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+  1234→                        <div>
+  1235→                          <p className="text-sm font-medium">{formatCurrency(loan.loanAmount)}</p>
+  1236→                          <p className="text-xs text-gray-500">{formatDate(loan.createdAt)}</p>
+  1237→                        </div>
+  1238→                        <Badge className={getStatusColor(loan.status)} variant="secondary">
+  1239→                          {formatStatus(loan.status)}
+  1240→                        </Badge>
+  1241→                      </div>
+  1242→                    ))}
+  1243→                  </div>
+  1244→                )}
+  1245→              </div>
+  1246→
+  1247→              <Separator />
+  1248→
+  1249→              {/* Activity Log */}
+  1250→              <div>
+  1251→                <h4 className="font-semibold text-sm text-gray-700 mb-3">Recent Activity</h4>
+  1252→                {userDetail.activityLogs.length === 0 ? (
+  1253→                  <p className="text-sm text-gray-400">No activity recorded</p>
+  1254→                ) : (
+  1255→                  <div className="space-y-1.5">
+  1256→                    {userDetail.activityLogs.slice(0, 5).map((log) => (
+  1257→                      <div key={log.id} className="flex items-start gap-2 text-sm">
+  1258→                        <Activity className="size-3.5 mt-1 text-gray-400 shrink-0" />
+  1259→                        <div>
+  1260→                          <p className="text-gray-700">{log.details}</p>
+  1261→                          <p className="text-xs text-gray-400">{formatDateTime(log.createdAt)}</p>
+  1262→                        </div>
+  1263→                      </div>
+  1264→                    ))}
+  1265→                  </div>
+  1266→                )}
+  1267→              </div>
+  1268→            </div>
+  1269→          ) : (
+  1270→            <p className="text-center text-gray-500">User not found</p>
+  1271→          )}
+  1272→        </DialogContent>
+  1273→      </Dialog>
+  1274→    </div>
+  1275→  );
+  1276→
+  1277→  // ═══════════════════════════════════════════════════════════════════════
+  1278→  // LOAN APPLICATIONS SECTION
+  1279→  // ═══════════════════════════════════════════════════════════════════════
+  1280→  const renderApplications = () => (
+  1281→    <div className="space-y-6">
+  1282→      <div>
+  1283→        <h2 className="text-2xl font-bold text-[#333333]">Loan Applications</h2>
+  1284→        <p className="text-gray-500 mt-1">Review and manage loan applications</p>
+  1285→      </div>
+  1286→
+  1287→      <Tabs
+  1288→        value={applicationsFilter}
+  1289→        onValueChange={(v) => {
+  1290→          setApplicationsFilter(v);
+  1291→          setApplicationsPagination({ ...applicationsPagination, page: 1 });
+  1292→        }}
+  1293→      >
+  1294→        <TabsList>
+  1295→          <TabsTrigger value="all">All</TabsTrigger>
+  1296→          <TabsTrigger value="pending_activation">Pending Activation</TabsTrigger>
+  1297→          <TabsTrigger value="approved">Approved</TabsTrigger>
+  1298→          <TabsTrigger value="rejected">Rejected</TabsTrigger>
+  1299→        </TabsList>
+  1300→
+  1301→        <TabsContent value={applicationsFilter} className="mt-4">
+  1302→          <Card>
+  1303→            <CardContent className="p-0">
+  1304→              {loadingApplications ? (
+  1305→                <div className="flex items-center justify-center py-12">
+  1306→                  <Loader2 className="size-8 animate-spin text-[#00A651]" />
+  1307→                </div>
+  1308→              ) : (
+  1309→                <>
+  1310→                  <div className="overflow-x-auto">
+  1311→                    <Table>
+  1312→                      <TableHeader>
+  1313→                        <TableRow>
+  1314→                          <TableHead>Applicant</TableHead>
+  1315→                          <TableHead>Amount</TableHead>
+  1316→                          <TableHead>Fee</TableHead>
+  1317→                          <TableHead>Status</TableHead>
+  1318→                          <TableHead className="hidden sm:table-cell">Date</TableHead>
+  1319→                          <TableHead>Actions</TableHead>
+  1320→                        </TableRow>
+  1321→                      </TableHeader>
+  1322→                      <TableBody>
+  1323→                        {applications.length === 0 ? (
+  1324→                          <TableRow>
+  1325→                            <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+  1326→                              No applications found
+  1327→                            </TableCell>
+  1328→                          </TableRow>
+  1329→                        ) : (
+  1330→                          applications.map((app) => (
+  1331→                            <TableRow key={app.id}>
+  1332→                              <TableCell>
+  1333→                                <div className="flex items-center gap-2">
+  1334→                                  <Avatar className="size-8">
+  1335→                                    <AvatarFallback className="bg-[#00A651] text-white text-xs">
+  1336→                                      {app.user.fullName.charAt(0).toUpperCase()}
+  1337→                                    </AvatarFallback>
+  1338→                                  </Avatar>
+  1339→                                  <div>
+  1340→                                    <p className="text-sm font-medium">{app.user.fullName}</p>
+  1341→                                    <p className="text-xs text-gray-500">{app.user.phone}</p>
+  1342→                                  </div>
+  1343→                                </div>
+  1344→                              </TableCell>
+  1345→                              <TableCell className="font-semibold text-sm">
+  1346→                                {formatCurrency(app.loanAmount)}
+  1347→                              </TableCell>
+  1348→                              <TableCell className="text-sm text-red-500">
+  1349→                                {formatCurrency(app.processingFee)}
+  1350→                              </TableCell>
+  1351→                              <TableCell>
+  1352→                                <Badge className={getStatusColor(app.status)} variant="secondary">
+  1353→                                  {formatStatus(app.status)}
+  1354→                                </Badge>
+  1355→                              </TableCell>
+  1356→                              <TableCell className="hidden sm:table-cell text-sm text-gray-600">
+  1357→                                {formatDate(app.createdAt)}
+  1358→                              </TableCell>
+  1359→                              <TableCell>
+
+[showing lines 760-1359 of 2441; use offset=1360 with limit to continue reading]

@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "The screenshot shows a web-based server management interface (likely a control panel) at the URL `panel.richkidrichiee.online/server/f05c45`. The page is titled \"C.E.O MINDSET\" and has a navigation bar with tabs for \"Console\", \"Files\", \"Databases\", \"Schedules\", and \"Users\" (with \"Console\" currently active). Below the navigation, there are three buttons: \"Start\" (blue), \"Restart\" (gray), and \"Stop\" (red).\n\nThe main content area displays a console log with various system messages. The log includes multiple \"INF\" (information) messages about precheck components (UDP Connectivity, TCP Connectivity, Cloudflare API) with status \"pass\" or \"failed\". The key error messages visible in the log are:\n\n1. `ERR error=\"stream 29 canceled by remote with error code 0\" connIndex=3 event=1 ingressRule=0 originService=http://localhost:2039`\n2. `ERR Request failed error=\"stream 29 canceled by remote with error code 0\" connIndex=3 dest=https://mkopa-loan.kenya.qzz.io/ event=0 ip=198.41.192.107 type=http`\n\nAt the bottom of the interface, there's a command input field with placeholder text \"Type a command...\" and a status panel showing:\n- Address: RAVEN:2039\n- Uptime: 0h 2m 23s\n- CPU Load: 0.50% / ∞\n- Memory: 89.27 MiB / ∞\n- Disk: 2.24 GiB / ∞\n- Network (Inbound): 147.54 KiB\n- Network (Outbound): 144.00 KiB\n\nThe error indicates that a stream connection (stream 29) was canceled by a remote server with error code 0, affecting both a local service (http://localhost:2039) and an external destination (https://mkopa-loan.kenya.qzz.io/).",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1781554576,
+  "id": "2026061604160538cf46fbcdec41b2",
+  "model": "glm-4.6v",
+  "object": "chat.completion",
+  "request_id": "2026061604160538cf46fbcdec41b2",
+  "usage": {
+    "completion_tokens": 431,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 1004,
+    "prompt_tokens_details": {
+      "cached_tokens": 6
+    },
+    "total_tokens": 1435
+  }
+}

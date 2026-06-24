@@ -1,0 +1,10 @@
+# MKOPA LOAN - Cloudflare Tunnel Configuration
+# Run: cloudflared tunnel run --token eyJhIjoiZDcwNTRjYzg3MjUxNTU2MzA1MDNlYzdkOTZjNmFjZmIiLCJ0IjoiODlhZDNkY2UtMTVjMS00MDlkLWExNjYtZWM5NmY4MDZjZDE1IiwicyI6Ik5UQmpaVGd5T0dZdE5HTTJaaTAwTUdVMUxUa3dZV1l0WVRWbFlURmhZVGt5TnpJeSJ9
+
+tunnel: 89ad3dce-15c1-409d-a166-ec96f806cd15
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  - hostname: mkopa-loan.kenya.qzz.io
+    service: http://localhost:3000
+  - service: http_status:404
