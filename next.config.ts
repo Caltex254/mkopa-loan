@@ -13,6 +13,10 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/": ["./src/generated/prisma/**/*"],
   },
+  // sharp uses native binaries that must be loaded via Node's require()
+  // (not bundled by webpack/turbopack). Without this, Vercel's bundler
+  // tries to trace and bundle sharp, which breaks at runtime.
+  serverExternalPackages: ["sharp"],
 };
 
 export default nextConfig;

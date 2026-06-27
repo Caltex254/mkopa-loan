@@ -35,14 +35,31 @@ function parseSize(value: string | null): SizePreset {
 // interop object whose default isn't callable, so calling `sharp(buf)`
 // throws "X is not a function". Using Node's native require at runtime
 // sidesteps the bundler entirely and gets us the real Sharp constructor.
+//
+// On Vercel serverless, sharp's native binaries may not be available.
+// In that case we gracefully fall back to serving the original image
+// (no resize) — bigger payload, but at least the image is visible.
 let _sharp: ((input: Buffer) => { rotate: () => unknown; resize: (opts: unknown) => unknown; jpeg: (opts: unknown) => unknown; toBuffer: () => Promise<Buffer> }) | null = null;
+let _sharpUnavailable = false;
 function getSharp(): typeof _sharp {
   if (_sharp) return _sharp;
-  // eslint-disable-next-line @typescript-eslint/no-eval, @typescript-eslint/no-require-imports
-  const nativeRequire = eval('require') as NodeRequire;
-  const mod = nativeRequire('sharp');
-  _sharp = (typeof mod === 'function' ? mod : mod.default) as typeof _sharp;
-  return _sharp;
+  if (_sharpUnavailable) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-eval, @typescript-eslint/no-require-imports
+    const nativeRequire = eval('require') as NodeRequire;
+    const mod = nativeRequire('sharp');
+    const fn = (typeof mod === 'function' ? mod : mod.default);
+    if (typeof fn !== 'function') {
+      _sharpUnavailable = true;
+      return null;
+    }
+    _sharp = fn as typeof _sharp;
+    return _sharp;
+  } catch {
+    // sharp not available (e.g. Vercel serverless without native binaries)
+    _sharpUnavailable = true;
+    return null;
+  }
 }
 
 // Small in-process LRU-ish cache for resized derivatives.
@@ -74,18 +91,25 @@ function setCached(key: string, buf: Buffer) {
 async function resizeForPreset(
   source: Buffer,
   preset: SizePreset
-): Promise<Buffer> {
-  if (preset === 'full') return source;
+): Promise<{ buf: Buffer; wasResized: boolean }> {
+  if (preset === 'full') return { buf: source, wasResized: false };
+  const sharp = getSharp();
+  if (!sharp) {
+    // sharp not available (e.g. Vercel serverless) — fall back to original image.
+    // The browser will display it at whatever size the <img> element specifies,
+    // so the admin can still see and verify the document.
+    return { buf: source, wasResized: false };
+  }
   const width = preset === 'thumb' ? 700 : 1600;
   const quality = preset === 'thumb' ? 72 : 82;
-  const sharp = getSharp()!;
   // rotate() auto-applies EXIF orientation, so portrait phone photos of ID
   // cards show upright instead of sideways.
-  return sharp(source)
+  const buf = await sharp(source)
     .rotate()
     .resize({ width, withoutEnlargement: true })
     .jpeg({ quality, mozjpeg: true, progressive: true })
     .toBuffer();
+  return { buf, wasResized: true };
 }
 
 export async function GET(
@@ -182,21 +206,23 @@ export async function GET(
       source = Buffer.from(imageData, 'base64');
     }
 
-    // Resize (or pass through if size=full).
-    const output = await resizeForPreset(source, size);
+    // Resize (or pass through if size=full or sharp unavailable).
+    const { buf: output, wasResized } = await resizeForPreset(source, size);
 
     // Cache derivative so subsequent requests for the same size are instant.
-    if (size !== 'full') {
+    if (size !== 'full' && wasResized) {
       setCached(cacheKey, output);
     }
 
-    // For derivatives we always emit image/jpeg (sharp converts everything).
-    // For full-size we preserve the original content type if it was a data URL.
-    const contentType = size === 'full'
-      ? (imageData.startsWith('data:')
-          ? (imageData.match(/^data:(.+?);base64,/)?.[1] ?? 'image/png')
-          : 'image/png')
-      : 'image/jpeg';
+    // Determine content type:
+    // - If sharp resized the image, it's always JPEG.
+    // - If we fell back to original (no resize), preserve the original format.
+    // - For full-size we preserve the original content type if it was a data URL.
+    const contentType = wasResized
+      ? 'image/jpeg'
+      : (imageData.startsWith('data:')
+          ? (imageData.match(/^data:(.+?);base64,/)?.[1] ?? 'image/jpeg')
+          : 'image/jpeg');
 
     const filenameBase = kyc.user.fullName.replace(/\s+/g, '_');
     const filename = size === 'full'
