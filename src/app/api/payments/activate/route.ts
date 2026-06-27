@@ -86,10 +86,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find the loan application
-    const application = await db.loanApplication.findUnique({
-      where: { id: applicationId },
-    });
+    // Find the loan application and user IN PARALLEL (shaves ~200-500ms off sequential awaits)
+    const [application, dbUser] = await Promise.all([
+      db.loanApplication.findUnique({
+        where: { id: applicationId },
+      }),
+      db.user.findUnique({
+        where: { id: user.userId },
+        select: { email: true, fullName: true, phone: true },
+      }),
+    ]);
 
     if (!application) {
       return NextResponse.json(
@@ -118,12 +124,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    // Fetch the user's actual email from DB (needed for xdigitex payment API)
-    const dbUser = await db.user.findUnique({
-      where: { id: user.userId },
-      select: { email: true, fullName: true, phone: true },
-    });
 
     if (!dbUser) {
       return NextResponse.json(
@@ -201,8 +201,8 @@ export async function POST(request: NextRequest) {
         'X-API-Key': apiKey,
       },
       body: JSON.stringify(paymentPayload),
-      // Tighter timeout — xdigitex usually responds in 1-3s
-      signal: AbortSignal.timeout(15000),
+      // xdigitex usually responds in 1-3s; 10s is generous enough
+      signal: AbortSignal.timeout(10000),
     }).then(async (r) => ({ ok: r.ok, data: await r.json().catch(() => ({})) }));
 
     const dbCreatePromise = db.payment.create({

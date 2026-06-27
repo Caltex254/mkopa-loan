@@ -875,6 +875,43 @@ export default function LoanApplication() {
                   </div>
                 )}
 
+                {/* Processing - Show immediate feedback while waiting for gateway */}
+                {paymentFlow === 'processing' && (
+                  <div className="p-5 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-[#00A651]/30 space-y-4">
+                    <div className="flex flex-col items-center text-center gap-3">
+                      {/* Animated phone icon */}
+                      <div className="relative">
+                        <div className="w-16 h-16 rounded-full bg-[#00A651]/10 flex items-center justify-center">
+                          <Smartphone className="size-8 text-[#00A651] animate-pulse" />
+                        </div>
+                        <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#00A651] flex items-center justify-center">
+                          <Loader2 className="size-3 text-white animate-spin" />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="font-bold text-[#333333] text-lg">Connecting to Payment...</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Please wait while we set up your payment through {gateway === 'airtel' ? 'Airtel Money' : gateway === 'safaricom' ? 'Safaricom M-Pesa' : 'your mobile network'}.
+                        </p>
+                      </div>
+                    </div>
+                    {/* Progress animation */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3 text-sm">
+                        <Loader2 className="size-4 text-[#00A651] animate-spin" />
+                        <span className="text-gray-600">Sending request to payment gateway...</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm text-gray-400">
+                        <div className="size-4 rounded-full border-2 border-gray-300" />
+                        <span>Awaiting response...</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400 text-center">
+                      This usually takes 3-5 seconds. Do not close this page.
+                    </p>
+                  </div>
+                )}
+
                 {/* Payment Form - Only show when idle */}
                 {paymentFlow === 'idle' && (
                 <>
