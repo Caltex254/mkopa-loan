@@ -1,0 +1,104 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+local-*
+.claude
+.z-ai-config
+*.log
+dev.log
+dev.out.log
+test
+prompt
+
+server.log
+
+# Skills directory
+/skills/
+
+# ─────────────────────────────────────────────────────────────
+# Vercel deployment hygiene — these directories/files are NOT
+# needed for the Vercel deployment. They are local-only build
+# artifacts, deploy packages, and Cloudflare tunnel binaries
+# that would otherwise bloat every serverless function and push
+# us past the 250 MB uncompressed size limit.
+# ─────────────────────────────────────────────────────────────
+/download/
+/deploy-pkg-clean/
+/upload/
+/tool-results/
+/agent-ctx/
+/mini-services/
+/examples/
+/cloudflared
+/cloudflared.yml
+/mkopa-final-deploy.tar.gz
+/deploy-pkg-clean.tar.gz
+/deploy.tar.gz
+*.tar.gz
+
+# SQLite local dev DB (Neon is used in production)
+/db/*.db
+/db/*.db-journal
+
+# Pterodactyl / Cloudflare tunnel deployment scripts (not needed on Vercel)
+/deploy-pterodactyl.sh
+/start-with-tunnel.sh
+/start-wrapper.js
+/deploy-server.js
+/deploy.js
+/docker-entrypoint.sh
+/pterodactyl-egg.sh
+/Dockerfile
+/docker-compose.yml
+/Caddyfile
+/scripts/build-deploy-package.sh
+
+# Local dev PID files
+/.zscripts/dev.pid
+/3000
+.open-next/
+open-next.config.ts
+wrangler.jsonc
+scripts/cf-
+scripts/patch-prisma-
+src/lib/fs-polyfill.ts
+src/instrumentation.ts

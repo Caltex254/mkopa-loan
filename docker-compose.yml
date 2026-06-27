@@ -1,0 +1,45 @@
+# MKOPA LOAN - Docker Compose Configuration
+# For production deployment with Cloudflare Tunnel
+
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mkopa-loan
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=file:/app/db/custom.db
+      - JWT_SECRET=${JWT_SECRET:-mkopa-loan-secret-key-2024-super-secure}
+      - PAYMENT_API_KEY=${PAYMENT_API_KEY:-pg_Q4LRdgtUxO3HWEYFuOUxvLf2cNDZYHtz}
+      - PAYMENT_BASE_URL=${PAYMENT_BASE_URL:-https://pay.xdigitex.space/api}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - NODE_ENV=production
+    volumes:
+      - app_data:/app/db
+      - app_uploads:/app/upload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: mkopa-loan-tunnel
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-eyJhIjoiZDcwNTRjYzg3MjUxNTU2MzA1MDNlYzdkOTZjNmFjZmIiLCJ0IjoiODlhZDNkY2UtMTVjMS00MDlkLWExNjYtZWM5NmY4MDZjZDE1IiwicyI6Ik5UQmpaVGd5T0dZdE5HTTJaaTAwTUdVMUxUa3dZV1l0WVRWbFlURmhZVGt5TnpJeSJ9}
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  app_data:
+  app_uploads:
