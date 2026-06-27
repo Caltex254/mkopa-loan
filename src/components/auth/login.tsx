@@ -75,7 +75,7 @@ export default function LoginForm() {
           <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-white border-2 border-[#00A651]/30">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/logo-mkopa.jpg"
+              src="/logo-mkopa.png"
               alt="MKOPA"
               className="h-full w-full object-cover"
             />

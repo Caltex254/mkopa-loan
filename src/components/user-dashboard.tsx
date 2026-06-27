@@ -346,7 +346,7 @@ export default function UserDashboard() {
       {/* Brand */}
       <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo-mkopa.jpg" alt="MKOPA LOAN" className="h-9 w-9 rounded-lg object-cover" />
+        <img src="/logo-mkopa.png" alt="MKOPA LOAN" className="h-9 w-9 rounded-lg object-cover" />
         <div>
           <h2 className="text-base font-bold text-[#333333]">MKOPA LOAN</h2>
           <p className="text-xs text-gray-500">Digital Lending</p>

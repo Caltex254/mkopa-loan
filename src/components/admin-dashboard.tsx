@@ -886,7 +886,7 @@ export default function AdminDashboard() {
         <div className="relative shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logo-mkopa.jpg"
+            src="/logo-mkopa.png"
             alt="MKOPA LOAN"
             className="h-10 w-10 rounded-xl shrink-0 object-cover ring-2 ring-white/20"
           />

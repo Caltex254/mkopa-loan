@@ -742,7 +742,7 @@ function Footer() {
           <div>
             <div className="mb-4 flex items-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-mkopa.jpg" alt="MKOPA LOAN" className="h-9 w-9 rounded-lg object-cover" />
+              <img src="/logo-mkopa.png" alt="MKOPA LOAN" className="h-9 w-9 rounded-lg object-cover" />
               <span className="text-xl font-bold">MKOPA LOAN</span>
             </div>
             <p className="text-sm text-gray-400 leading-relaxed">
@@ -917,7 +917,7 @@ export default function Landing() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 md:px-8 lg:px-16">
           <div className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-mkopa.jpg" alt="MKOPA LOAN" className="h-9 w-9 rounded-lg object-cover" />
+            <img src="/logo-mkopa.png" alt="MKOPA LOAN" className="h-9 w-9 rounded-lg object-cover" />
             <span className="text-xl font-bold text-[#333333]">
               MKOPA <span className="text-[#00A651]">LOAN</span>
             </span>
