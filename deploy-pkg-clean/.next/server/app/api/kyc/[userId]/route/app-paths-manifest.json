@@ -1,3 +1,0 @@
-{
-  "/api/kyc/[userId]/route": "app/api/kyc/[userId]/route.js"
-}
